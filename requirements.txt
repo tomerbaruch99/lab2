@@ -1,0 +1,9 @@
+torch
+torchvision
+torchmetrics
+torch-geometric
+numpy
+scikit-image
+matplotlib
+tqdm
+lpips
