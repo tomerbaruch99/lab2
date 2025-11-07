@@ -21,9 +21,6 @@ What this script does
 Usage
 -----
 python data_preparation.py \
-  --csv /path/to/master_clauses.csv \
-  --squad_json /path/to/CUAD_v1.json \
-  --txt_dir /path/to/full_contract_txt \
   --out_dir ./data_prepared \
   --chunk_chars 4000 \
   --chunk_overlap 400 \
@@ -43,12 +40,14 @@ import os
 import re
 from collections import defaultdict
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+from consts import CUAD_CSV_FILEPATH, CUAD_JSON_FILEPATH, FULL_CONTRACTS_TXT_DIR
 
-# 41 CUAD categories and answer types (from CUAD README)
+# 41 CUAD categories and answer types (taken from CUAD README)
 # Answer types are approximate and used for normalization/validation.
 CUAD_CATEGORIES: List[Dict] = [
     {"name": "Document Name", "answer_type": "text", "group": None},
@@ -94,7 +93,7 @@ CUAD_CATEGORIES: List[Dict] = [
     {"name": "Third Party Beneficiary", "answer_type": "yesno", "group": None},
 ]
 
-# Natural-language question templates per category (used for RAG prompts)
+# Natural-language question templates per category
 QUESTION_TEMPLATES: Dict[str, str] = {
     "Document Name": "What is the name of this agreement?",
     "Parties": "Who are the parties to this agreement?",
@@ -139,76 +138,79 @@ QUESTION_TEMPLATES: Dict[str, str] = {
     "Third Party Beneficiary": "Are there third-party beneficiaries?",
 }
 
+# CUAD contract types (from CUAD_v1_README.txt)
+CONTRACT_TYPES: List[str] = [
+    "affiliate agreement",
+    "agency agreement",
+    "collaboration/cooperation agreement",
+    "collaboration agreement",
+    "cooperation agreement",
+    "co-branding agreement",
+    "consulting agreement",
+    "development agreement",
+    "distributor agreement",
+    "endorsement agreement",
+    "franchise agreement",
+    "hosting agreement",
+    "ip agreement",
+    "joint venture agreement",
+    "license agreement",
+    "maintenance agreement",
+    "manufacturing agreement",
+    "marketing agreement",
+    "non-compete/no-solicit/non-disparagement agreement",
+    "non-compete agreement",
+    "no-solicit agreement",
+    "non-disparagement agreement",
+    "outsourcing agreement",
+    "promotion agreement",
+    "reseller agreement",
+    "service agreement",
+    "sponsorship agreement",
+    "supply agreement",
+    "strategic alliance agreement",
+    "transportation agreement",
+]
+
 # -----------------------------
 # Utilities
-# -----------------------------
 
-RE_WHITESPACE = re.compile(r"[ \t\f\v]+")
-RE_MULTINEWLINES = re.compile(r"\n{3,}")
-RE_PAGE_FOOTER = re.compile(r"(?i)page\s+\d+(\s+of\s+\d+)?")
-RE_HEADER_FOOTER_NOISE = re.compile(r"(?i)(confidential|treatment request|exhibit|table of contents)")
-RE_RED_ACTION = re.compile(r"(\*{2,}|_{2,}|<omitted>)")
+RE_WHITESPACE = re.compile(r"[ \t\f\v]+")  # Whitespace like tabs, spaces; doesn't include newlines.
+RE_PAGE_FOOTER = re.compile(r"(?i)page\s+\d+(\s+of\s+\d+)?")  # Page numbers like "page 1" or "page 1 of 10".
+RE_HEADER_FOOTER_NOISE = re.compile(r"(?i)(confidential|treatment request|exhibit|table of contents)")  # Header/footer noise like "Confidential", "Treatment Request", "Exhibit", "Table of Contents".
+RE_RED_ACTION = re.compile(r"\*{2,}|_{2,}|<omitted>")  # Redaction markers like "**", "__", "<omitted>".
 
 def clean_clause_text(text: str) -> str:
-    """Clean clause text but preserve redaction markers and <omitted> tokens."""
-    if pd.isna(text):
-        return ""
-    t = str(text)
-    # Keep explicit redaction markers as-is; remove obvious repeated whitespace noise
-    t = t.replace("\r", "\n")
-    t = RE_WHITESPACE.sub(" ", t)
-    t = RE_MULTINEWLINES.sub("\n\n", t)
-    # Leave redaction markers untouched; do not attempt reconstruction
-    return t.strip()
-
-def safe_yesno(x: str) -> Optional[str]:
-    if pd.isna(x) or x is None:
-        return None
-    s = str(x).strip().lower()
-    if s in {"yes", "no"}:
-        return s.capitalize()
-    return None  # leave as None if not clean yes/no
+    """Cleans the input clause text, but keeps redaction markers and <omitted> tokens."""
+    return RE_PAGE_FOOTER.sub("", RE_HEADER_FOOTER_NOISE.sub("", RE_WHITESPACE.sub(" ", text).replace("\r", "\n")))
 
 def normalize_answer(category: str, answer: str) -> str:
-    """Light normalization for answers; do not infer redactions."""
-    if pd.isna(answer) or answer is None:
-        return ""
-    a = str(answer).strip()
-    # Preserve redactions like '1/[]/2014' or '***'
-    if RE_RED_ACTION.search(a):
-        return a
-    # Normalize yes/no
+    """Light normalization for answers; does not infer redactions. Preserves redactions like '1/[]/2014' or '***'."""
+    answer = clean_clause_text(answer)
+    if RE_RED_ACTION.search(answer):
+        return answer
     if category in {c["name"] for c in CUAD_CATEGORIES if c["answer_type"] == "yesno"}:
-        yn = safe_yesno(a)
-        return yn if yn else a
-    # Normalize whitespace
-    a = RE_WHITESPACE.sub(" ", a).strip()
-    return a
+        return answer.strip().capitalize() if answer.strip().lower() in ["yes", "no"] else answer
+    return answer.strip()
 
 def infer_contract_type(filename: str, document_name_answer: str) -> str:
-    """Heuristic: try to infer contract type from Document Name-Answer or filename."""
-    candidates = []
-    if document_name_answer and isinstance(document_name_answer, str):
+    """Heuristic: try to infer contract type from Document Name-Answer or filename. Returns 'unknown' if no match."""
+    candidates: List[str] = []
+    if document_name_answer:
         candidates.append(document_name_answer.lower())
     if filename:
-        candidates.append(Path(filename).stem.lower())
-    joined = " ".join(candidates)
-    # Common CUAD contract types keywords
-    types = [
-        "affiliate agreement","agency agreement","collaboration","cooperation","co-branding",
-        "consulting","development","distributor","endorsement","franchise","hosting","ip agreement",
-        "joint venture","license agreement","maintenance","manufacturing","marketing",
-        "non-compete","no-solicit","non-disparagement","outsourcing","promotion","reseller",
-        "service agreement","sponsorship","supply agreement","strategic alliance","transportation"
-    ]
-    for t in types:
-        if t in joined:
-            return t
+        candidates.append(os.path.splitext(filename)[0].lower())
+    joined_candidates = " ".join(candidates).lower()
+    for contract_type in CONTRACT_TYPES:
+        if contract_type in joined_candidates:
+            return contract_type
     return "unknown"
 
 def chunk_text(text: str, max_chars: int = 4000, overlap: int = 400) -> List[Tuple[int, str]]:
     """Chunk plain text by characters with overlap; page/section aware chunking can be added later."""
-    text = clean_clause_text(text)
+    if not text or pd.isna(text):
+        return []
+    text = clean_clause_text(str(text))
     if not text:
         return []
     chunks = []
@@ -229,13 +231,13 @@ def chunk_text(text: str, max_chars: int = 4000, overlap: int = 400) -> List[Tup
     return chunks
 
 def ensure_out_dir(d: str) -> Path:
+    """Create output directory if it doesn't exist and return Path object."""
     p = Path(d)
     p.mkdir(parents=True, exist_ok=True)
     return p
 
 # -----------------------------
 # Stage 1: ETL Pipeline
-# -----------------------------
 
 def read_master_csv(csv_path: str) -> pd.DataFrame:
     df = pd.read_csv(csv_path)
@@ -470,9 +472,6 @@ def write_outputs(out_dir: str,
 
 def main():
     parser = argparse.ArgumentParser(description="CUAD RAG Preparation (Stages 0 & 1)")
-    parser.add_argument("--csv", type=str, required=True, help="Path to CUAD_v1 master CSV (83 columns)")
-    parser.add_argument("--squad_json", type=str, default=None, help="Path to SQuAD-style CUAD JSON (optional)")
-    parser.add_argument("--txt_dir", type=str, default=None, help="Folder with full_contracts_txt (optional)")
     parser.add_argument("--out_dir", type=str, default="./cuad_prepared")
     parser.add_argument("--chunk_chars", type=int, default=4000, help="Max characters per TXT chunk")
     parser.add_argument("--chunk_overlap", type=int, default=400, help="Character overlap between chunks")
@@ -480,9 +479,9 @@ def main():
     parser.add_argument("--test_size", type=float, default=0.15, help="Test split ratio (by contract)")
     args = parser.parse_args()
 
-    # 1) Read master CSV and build long table
+    # Read master CSV and build long table
     print("[STEP] Loading master CSV...")
-    df = read_master_csv(args.csv)
+    df = read_master_csv(CUAD_CSV_FILEPATH)
 
     # Validate expected columns
     expected_first = "Filename"
@@ -492,29 +491,29 @@ def main():
     print("[STEP] Building long, RAG-ready table...")
     long_df = build_long_table(df)
 
-    # 2) Build contract-level splits
+    # Build contract-level splits
     print("[STEP] Making contract-level splits...")
     split_map = make_splits(long_df, val_size=args.val_size, test_size=args.test_size, seed=42)
     long_df = attach_splits(long_df, split_map)
 
-    # 3) Optional: Chunk full TXT contracts into paragraph windows
+    # Optional: Chunk full TXT contracts into paragraph windows
     para_df = pd.DataFrame()
-    if args.txt_dir:
-        print("[STEP] Chunking full-contract TXT files...")
-        para_df = build_contract_paragraph_index(
-            txt_dir=args.txt_dir,
-            out_path=os.path.join(args.out_dir, "cuad_paragraph_index.csv"),
-            chunk_chars=args.chunk_chars,
-            overlap=args.chunk_overlap,
-        )
 
-    # 4) Optional: Flatten SQuAD JSON for extractive reader fine-tuning
+    print("[STEP] Chunking full-contract TXT files...")
+    para_df = build_contract_paragraph_index(
+        txt_dir=FULL_CONTRACTS_TXT_DIR,
+        out_path=os.path.join(args.out_dir, "cuad_paragraph_index.csv"),
+        chunk_chars=args.chunk_chars,
+        overlap=args.chunk_overlap,
+    )
+
+    # Optional: Flatten SQuAD JSON for extractive reader fine-tuning
     squad_df = pd.DataFrame()
-    if args.squad_json and Path(args.squad_json).exists():
+    if CUAD_JSON_FILEPATH and Path(CUAD_JSON_FILEPATH).exists():
         print("[STEP] Loading SQuAD-style JSON...")
-        squad_df = load_squad_json(args.squad_json)
+        squad_df = load_squad_json(CUAD_JSON_FILEPATH)
 
-    # 5) Write outputs
+    # Write outputs
     print("[STEP] Writing outputs...")
     write_outputs(args.out_dir, long_df, squad_df, para_df)
 
