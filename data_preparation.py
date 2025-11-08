@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 CUAD data Preparation
 ===================================
@@ -34,11 +32,10 @@ Notes
 """
 
 import argparse
+import csv
 import json
-import math
 import os
 import re
-from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -182,11 +179,28 @@ RE_RED_ACTION = re.compile(r"\*{2,}|_{2,}|<omitted>")  # Redaction markers like 
 
 def clean_clause_text(text: str) -> str:
     """Cleans the input clause text, but keeps redaction markers and <omitted> tokens."""
+    # Handle NaN, None, or non-string inputs
+    if text is None:
+        return ""
+    # Check for pandas NaN (which is a float)
+    try:
+        if pd.isna(text):
+            return ""
+    except (TypeError, ValueError):
+        pass  # Not a type that can be NaN
+    # Convert to string and process
+    text = str(text)
+    # Also check for string "nan" or "None" that might come from CSV
+    if text.lower() in ("nan", "none", ""):
+        return ""
     return RE_PAGE_FOOTER.sub("", RE_HEADER_FOOTER_NOISE.sub("", RE_WHITESPACE.sub(" ", text).replace("\r", "\n")))
 
 def normalize_answer(category: str, answer: str) -> str:
     """Light normalization for answers; does not infer redactions. Preserves redactions like '1/[]/2014' or '***'."""
+    # clean_clause_text handles NaN/None, so we can call it directly
     answer = clean_clause_text(answer)
+    if not answer:
+        return ""
     if RE_RED_ACTION.search(answer):
         return answer
     if category in {c["name"] for c in CUAD_CATEGORIES if c["answer_type"] == "yesno"}:
@@ -216,7 +230,21 @@ def chunk_text(text: str, max_chars: int = 4000, overlap: int = 400) -> List[Tup
     chunks = []
     start = 0
     n = len(text)
+    # Calculate reasonable max iterations: worst case is when we advance by 1 char each time
+    # But with overlap, we should advance by at least (max_chars - overlap) each iteration
+    # Add generous buffer (3x) to account for edge cases
+    min_advance = max(1, max_chars - overlap)
+    max_iterations = (n // min_advance) * 3 + 100  # Much more generous limit
+    iterations = 0
+    
     while start < n:
+        iterations += 1
+        if iterations > max_iterations:
+            # Safety: if we've iterated too many times, break to prevent infinite loop
+            # This is a fallback safety mechanism
+            print(f"[WARN] chunk_text: Max iterations ({max_iterations}) reached for text of length {n}, breaking at start={start}")
+            break
+            
         end = min(start + max_chars, n)
         # try to end at a sentence boundary
         cut = text.rfind(". ", start, end)
@@ -224,10 +252,26 @@ def chunk_text(text: str, max_chars: int = 4000, overlap: int = 400) -> List[Tup
             cut = end
         else:
             cut += 1  # keep the period
-        chunks.append((start, text[start:cut].strip()))
+        
+        chunk_text_slice = text[start:cut].strip()
+        if chunk_text_slice:  # Only add non-empty chunks
+            chunks.append((start, chunk_text_slice))
+        
         if cut >= n:
             break
-        start = max(0, cut - overlap)
+        
+        # Calculate next start position
+        next_start = max(0, cut - overlap)
+        
+        # Safety check: ensure we're making progress
+        if next_start <= start:
+            # If we're not making progress, force advancement
+            next_start = start + 1
+            if next_start >= n:
+                break
+        
+        start = next_start
+    
     return chunks
 
 def ensure_out_dir(d: str) -> Path:
@@ -307,43 +351,193 @@ def build_long_table(df: pd.DataFrame) -> pd.DataFrame:
 def build_contract_paragraph_index(txt_dir: str,
                                    out_path: str,
                                    chunk_chars: int = 4000,
-                                   overlap: int = 400) -> pd.DataFrame:
+                                   overlap: int = 400,
+                                   batch_size: int = 50) -> pd.DataFrame:
     """
     Chunk all TXT contracts; return/save a dataframe:
     (doc_id, filename, chunk_id, start_char, text)
+    Processes files in batches and writes incrementally to reduce memory usage.
     """
-    records = []
     txt_dir_p = Path(txt_dir)
     if not txt_dir_p.exists():
         print(f"[WARN] TXT folder not found, skipping: {txt_dir}")
         return pd.DataFrame()
 
-    for p in sorted(txt_dir_p.glob("*.txt")):
-        try:
-            text = p.read_text(encoding="utf-8", errors="ignore")
-        except Exception:
-            text = p.read_text(encoding="latin-1", errors="ignore")
-        chunks = chunk_text(text, max_chars=chunk_chars, overlap=overlap)
-        for i, (start, chunk) in enumerate(chunks):
-            records.append({
-                "doc_id": p.stem,
-                "filename": p.name,
-                "chunk_id": i,
-                "start_char": start,
-                "text": chunk
-            })
-    para_df = pd.DataFrame(records)
-    if not para_df.empty:
-        outp = Path(out_path)
-        outp.parent.mkdir(parents=True, exist_ok=True)
-        if outp.suffix.lower() == ".parquet":
-            para_df.to_parquet(outp, index=False)
+    # Get file list (don't sort to save memory - process as we find them)
+    txt_files = list(txt_dir_p.glob("*.txt"))
+    total_files = len(txt_files)
+    if total_files == 0:
+        print("[INFO] No TXT files found.")
+        return pd.DataFrame()
+
+    print(f"[INFO] Found {total_files} TXT files. Processing and writing after each file...")
+    outp = Path(out_path)
+    outp.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Use CSV for incremental writing, then convert to Parquet if needed
+    is_parquet = outp.suffix.lower() == ".parquet"
+    temp_csv = outp.with_suffix(".csv.tmp") if is_parquet else None
+    write_path = temp_csv if is_parquet else outp
+    
+    # Remove existing file if it exists to start fresh
+    if write_path.exists():
+        write_path.unlink()
+    
+    processed = 0
+    skipped = 0
+    total_chunks = 0
+    header_written = False
+    
+    print(f"[INFO] Starting file processing...")
+    
+    try:
+        for file_idx, p in enumerate(txt_files, 1):
+            try:
+                # Read file with size limit check (skip large files)
+                file_size = p.stat().st_size
+                if file_size > 10 * 1024 * 1024:  # Skip files larger than 10MB
+                    skipped += 1
+                    if skipped <= 5:  # Only print first 5 skipped files
+                        print(f"[WARN] Skipping large file: {p.name} ({file_size / 1024 / 1024:.1f}MB)")
+                    continue
+                if file_size == 0:
+                    skipped += 1
+                    continue
+                
+                # Read file
+                text = None
+                try:
+                    text = p.read_text(encoding="utf-8", errors="ignore")
+                except Exception as e:
+                    try:
+                        text = p.read_text(encoding="latin-1", errors="ignore")
+                    except Exception as e2:
+                        print(f"[WARN] Could not read {p.name}: {e2}")
+                        continue
+                
+                if not text:
+                    continue
+                
+                # Process chunks
+                try:
+                    chunks = chunk_text(text, max_chars=chunk_chars, overlap=overlap)
+                except Exception as e:
+                    print(f"[ERROR] Error chunking {p.name}: {e}")
+                    del text
+                    continue
+                finally:
+                    del text  # Free memory immediately after chunking
+                
+                if not chunks:
+                    continue
+                
+                # Write chunks directly to CSV using built-in csv module (more memory-efficient)
+                try:
+                    num_chunks = len(chunks)
+                    
+                    # Open file in append mode
+                    with open(write_path, 'a', newline='', encoding='utf-8') as csvfile:
+                        # Use QUOTE_ALL to quote all fields - safest for text with commas, newlines, quotes
+                        # This ensures proper CSV formatting even with complex text content
+                        writer = csv.writer(csvfile, quoting=csv.QUOTE_ALL)
+                        # Write header if first file
+                        if not header_written:
+                            writer.writerow(['doc_id', 'filename', 'chunk_id', 'start_char', 'text'])
+                            header_written = True
+                        
+                        # Write each chunk directly (no DataFrame creation)
+                        for i, (start_pos, chunk) in enumerate(chunks):
+                            writer.writerow([p.stem, p.name, i, start_pos, chunk])
+                    
+                    processed += 1
+                    total_chunks += num_chunks
+                except Exception as e:
+                    print(f"[ERROR] Error writing chunks for {p.name}: {e}")
+                    processed += 1
+                finally:
+                    del chunks  # Free memory immediately
+                
+                # Progress update more frequently
+                if processed % 10 == 0 or file_idx == total_files:
+                    print(f"[INFO] Processed {processed}/{total_files} files ({total_chunks:,} chunks so far)...")
+                    
+            except MemoryError:
+                print(f"[ERROR] Out of memory processing {p.name}, skipping...")
+                continue
+            except Exception as e:
+                print(f"[WARN] Error processing {p.name}: {e}")
+                continue
+        
+        # Convert CSV to Parquet if needed (using pyarrow for efficient conversion)
+        if is_parquet and temp_csv and temp_csv.exists():
+            csv_size_mb = temp_csv.stat().st_size / (1024 * 1024)
+            print(f"[INFO] Converting CSV to Parquet ({csv_size_mb:.1f}MB, this may take a moment)...")
+            try:
+                import pyarrow as pa
+                import pyarrow.parquet as pq
+                import pyarrow.csv as pc
+                
+                # Use pyarrow to convert CSV to Parquet efficiently
+                # Note: This may load the entire CSV into memory, but PyArrow is more efficient than pandas
+                parse_opts = pc.ParseOptions(newlines_in_values=True)
+                table = pc.read_csv(temp_csv, parse_options=parse_opts)
+                pq.write_table(table, outp)
+                row_count = table.num_rows
+                del table  # Free memory
+                temp_csv.unlink()  # Delete temporary CSV
+                print(f"[OK] Paragraph index saved to: {outp} ({row_count:,} chunks from {processed} files)")
+                # Return empty DataFrame with schema (data is on disk, no need to load)
+                return pd.DataFrame(columns=['doc_id', 'filename', 'chunk_id', 'start_char', 'text'])
+            except ImportError:
+                # Fallback to pandas if pyarrow not available (less efficient)
+                print("[WARN] PyArrow not available, using pandas (slower, may use more memory)...")
+                # Read in chunks and write incrementally
+                chunk_list = []
+                for chunk in pd.read_csv(temp_csv, chunksize=50000):
+                    chunk_list.append(chunk)
+                    if len(chunk_list) >= 2:  # Combine every 2 chunks to reduce memory
+                        combined = pd.concat(chunk_list, ignore_index=True)
+                        if not outp.exists():
+                            combined.to_parquet(outp, index=False)
+                        else:
+                            existing = pd.read_parquet(outp)
+                            pd.concat([existing, combined], ignore_index=True).to_parquet(outp, index=False)
+                            del existing
+                        chunk_list = []
+                        del combined
+                # Handle remaining chunks
+                if chunk_list:
+                    combined = pd.concat(chunk_list, ignore_index=True)
+                    if not outp.exists():
+                        combined.to_parquet(outp, index=False)
+                    else:
+                        existing = pd.read_parquet(outp)
+                        pd.concat([existing, combined], ignore_index=True).to_parquet(outp, index=False)
+                temp_csv.unlink()
+                print(f"[OK] Paragraph index saved to: {outp} (from {processed} files)")
+                return pd.DataFrame(columns=['doc_id', 'filename', 'chunk_id', 'start_char', 'text'])
+            except MemoryError:
+                print(f"[WARN] Out of memory converting to Parquet. Keeping CSV file: {temp_csv}")
+                print(f"[INFO] You can manually convert {temp_csv} to Parquet later if needed.")
+                return pd.DataFrame(columns=['doc_id', 'filename', 'chunk_id', 'start_char', 'text'])
+            except Exception as e:
+                print(f"[WARN] Error converting to Parquet: {e}. Keeping CSV file: {temp_csv}")
+                return pd.DataFrame(columns=['doc_id', 'filename', 'chunk_id', 'start_char', 'text'])
+        elif write_path.exists():
+            # For CSV, return empty DataFrame with schema (data already on disk)
+            print(f"[OK] Paragraph index saved to: {write_path} ({total_chunks:,} chunks from {processed} files)")
+            # Return minimal metadata
+            return pd.DataFrame(columns=['doc_id', 'filename', 'chunk_id', 'start_char', 'text'])
         else:
-            para_df.to_csv(outp, index=False)
-        print(f"[OK] Paragraph index saved to: {outp}")
-    else:
-        print("[INFO] No TXT files processed.")
-    return para_df
+            print("[INFO] No TXT files processed.")
+            return pd.DataFrame()
+            
+    except Exception as e:
+        print(f"[ERROR] Failed to process files: {e}")
+        # Clean up temp file on error
+        if temp_csv and temp_csv.exists():
+            temp_csv.unlink()
+        raise
 
 def make_splits(contract_df: pd.DataFrame,
                 val_size: float = 0.15,
@@ -464,15 +658,17 @@ def write_outputs(out_dir: str,
         squad_df.to_parquet(squad_path, index=False)
         print(f"[OK] SQuAD-flat saved: {squad_path}")
 
-    # Paragraph index (optional)
-    if para_df is not None and not para_df.empty:
-        para_path = out_dir_p / "cuad_paragraph_index.parquet"
-        para_df.to_parquet(para_path, index=False)
-        print(f"[OK] Paragraph index saved: {para_path}")
+    # Paragraph index (optional) - already written by build_contract_paragraph_index
+    # Just report if it exists
+    para_path = out_dir_p / "cuad_paragraph_index.parquet"
+    if para_path.exists():
+        print(f"[OK] Paragraph index already saved: {para_path}")
+    elif (out_dir_p / "cuad_paragraph_index.csv").exists():
+        print(f"[OK] Paragraph index already saved: {out_dir_p / 'cuad_paragraph_index.csv'}")
 
 def main():
     parser = argparse.ArgumentParser(description="CUAD RAG Preparation (Stages 0 & 1)")
-    parser.add_argument("--out_dir", type=str, default="./cuad_prepared")
+    parser.add_argument("--out_dir", type=str, default="./cuad_prepared_data")
     parser.add_argument("--chunk_chars", type=int, default=4000, help="Max characters per TXT chunk")
     parser.add_argument("--chunk_overlap", type=int, default=400, help="Character overlap between chunks")
     parser.add_argument("--val_size", type=float, default=0.15, help="Validation split ratio (by contract)")
@@ -497,12 +693,28 @@ def main():
     long_df = attach_splits(long_df, split_map)
 
     # Optional: Chunk full TXT contracts into paragraph windows
+    # Free up memory from previous steps before chunking
+    import gc
+    # Save long_df to disk first before freeing memory
+    long_df_path = os.path.join(args.out_dir, "cuad_long_clauses_temp.parquet")
+    Path(args.out_dir).mkdir(parents=True, exist_ok=True)
+    long_df.to_parquet(long_df_path, index=False)
+    print(f"[INFO] Saved long_df to disk, freeing memory...")
+    
+    # Free memory from previous steps
+    del df  # Free the original CSV DataFrame
+    long_df_size_mb = long_df.memory_usage(deep=True).sum() / (1024 * 1024)
+    del long_df  # Free the long DataFrame (can be large)
+    gc.collect()  # Force garbage collection
+    print(f"[INFO] Freed ~{long_df_size_mb:.1f}MB from long_df")
+    
+    # Reload long_df if needed for later steps (will be reloaded in write_outputs if needed)
+    
     para_df = pd.DataFrame()
-
     print("[STEP] Chunking full-contract TXT files...")
     para_df = build_contract_paragraph_index(
         txt_dir=FULL_CONTRACTS_TXT_DIR,
-        out_path=os.path.join(args.out_dir, "cuad_paragraph_index.csv"),
+        out_path=os.path.join(args.out_dir, "cuad_paragraph_index.parquet"),
         chunk_chars=args.chunk_chars,
         overlap=args.chunk_overlap,
     )
@@ -513,13 +725,21 @@ def main():
         print("[STEP] Loading SQuAD-style JSON...")
         squad_df = load_squad_json(CUAD_JSON_FILEPATH)
 
-    # Write outputs
+    # Write outputs (reload long_df from temp file)
     print("[STEP] Writing outputs...")
-    write_outputs(args.out_dir, long_df, squad_df, para_df)
+    long_df_temp_path = os.path.join(args.out_dir, "cuad_long_clauses_temp.parquet")
+    if os.path.exists(long_df_temp_path):
+        long_df = pd.read_parquet(long_df_temp_path)
+        write_outputs(args.out_dir, long_df, squad_df, para_df)
+        # Clean up temp file
+        os.remove(long_df_temp_path)
+    else:
+        # Fallback: long_df should still be in memory
+        write_outputs(args.out_dir, long_df, squad_df, para_df)
 
-    # 6) Quick report
+    # Quick report
     print("\n[REPORT]")
-    print(f" Clauses rows: {len(long_df):,} (train={sum(long_df.split=='train'):,}, val={sum(long_df.split=='val'):,}, test={sum(long_df.split=='test'):,})")
+    print(f" Clauses rows: {len(long_df):,} (train={sum(long_df['split']=='train'):,}, val={sum(long_df['split']=='val'):,}, test={sum(long_df['split']=='test'):,})")
     print(f" Unique contracts: {long_df['filename'].nunique():,}")
     print(f" Categories covered: {long_df['category'].nunique()}")
     if not para_df.empty:

@@ -1,6 +1,6 @@
 import pandas as pd
 
-def extract_clauses(csv_path="data/CUAD_v1.csv", save_path="data/clauses.csv"):
+def extract_clauses(csv_path="data/CUAD_v1/master_clauses.csv", save_path="data/CUAD_v1/clauses.csv"):
     df = pd.read_csv(csv_path)
     clause_cols = [c for c in df.columns if c.endswith("-Answer")]
 
