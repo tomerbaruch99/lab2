@@ -371,29 +371,3 @@ class ExtractiveReader:
         
         return best_answer if best_answer and best_answer["score"] >= 0 else None
 
-
-if __name__ == "__main__":
-    import argparse
-    
-    parser = argparse.ArgumentParser(description="Train or use extractive reader")
-    parser.add_argument("--mode", choices=["train", "test"], default="train",
-                       help="Mode: train or test")
-    parser.add_argument("--model_dir", type=str, default=OUTPUT_DIR,
-                       help="Model directory path")
-    parser.add_argument("--squad_path", type=str, default=SQUAD_PARQUET_PATH,
-                       help="Path to CUAD SQuAD parquet file")
-    
-    args = parser.parse_args()
-    
-    if args.mode == "train":
-        train_extractive_reader(squad_parquet_path=args.squad_path, output_dir=args.model_dir)
-    else:
-        # Example usage
-        reader = ExtractiveReader(model_dir=args.model_dir)
-        question = "What is the governing law?"
-        context = "This Agreement shall be governed by and construed in accordance with the laws of the State of New York."
-        result = reader.extract_answer(question, context)
-        print(f"Question: {question}")
-        print(f"Answer: {result['answer_text']}")
-        print(f"Score: {result['score']:.4f}")
-
