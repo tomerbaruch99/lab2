@@ -20,6 +20,11 @@ st.set_page_config(
     layout="wide"
 )
 
+# Check for required environment variables
+if not os.getenv("GEMINI_API_KEY") and not os.getenv("GOOGLE_API_KEY"):
+    st.error("❌ **Missing API Key**: Please set `GEMINI_API_KEY` or `GOOGLE_API_KEY` environment variable to use this app.")
+    st.stop()
+
 # Initialize session state
 if "qa_pipeline" not in st.session_state:
     st.session_state.qa_pipeline = None
