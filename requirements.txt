@@ -4,7 +4,7 @@ pyarrow
 tqdm
 sentence-transformers
 faiss-cpu
-pinecone-client
+pinecone
 openai
 google-generativeai
 cohere
