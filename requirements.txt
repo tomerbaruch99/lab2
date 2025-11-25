@@ -8,3 +8,4 @@ pinecone
 openai
 google-generativeai
 cohere
+langchain
