@@ -41,10 +41,10 @@ def load_pinecone_api_key(api_keys_path: str) -> str:
     with open(api_keys_path, "r", encoding="utf-8") as f:
         api_keys = json.load(f)
 
-    if "pinecone" not in api_keys:
-        raise KeyError("Key 'pinecone' missing from api_keys.json")
+    if "PINECONE_API_KEY" not in api_keys:
+        raise KeyError("Key 'PINECONE_API_KEY' missing from api_keys.json")
 
-    return api_keys["pinecone"]
+    return api_keys["PINECONE_API_KEY"]
 
 
 def create_index(pc: Pinecone, index_name: str, dimension: int):
@@ -327,7 +327,7 @@ def parse_args():
     parser.add_argument("--paragraph_csv", type=str, default=DEFAULT_PARAGRAPH_CSV,
                         help="Fallback CSV file name inside prepared_dir.")
     parser.add_argument("--api_keys_path", type=str, default=DEFAULT_API_KEYS_PATH,
-                        help="Path to api_keys.json with 'pinecone' key.")
+                        help="Path to api_keys.json with 'PINECONE_API_KEY' key.")
     parser.add_argument("--embedding_model", type=str, default=DEFAULT_EMBEDDING_MODEL,
                         help="SentenceTransformer model name.")
     parser.add_argument("--index_name", type=str, default=DEFAULT_INDEX_NAME,

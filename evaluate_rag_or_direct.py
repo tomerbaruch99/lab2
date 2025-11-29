@@ -21,12 +21,12 @@ from tqdm.auto import tqdm
 
 # ----------------- Config -----------------
 
-API_KEYS_PATH = Path("../src/api_keys.json")  # adjust if needed
+API_KEYS_PATH = Path("api_keys.json")  # adjust if needed
 MODEL_RESPONSES_FOLDER = Path("model_responses")
 EVALUATION_FOLDER = Path("evaluation")
 EVALUATION_FOLDER.mkdir(parents=True, exist_ok=True)
 
-GEMINI_MODEL_NAME = "gemini-2.5-flash"
+GEMINI_MODEL_NAME = "gemini-2.0-flash"
 SLEEP_BETWEEN_CALLS = 5.0  # seconds, to avoid rate limits
 
 
@@ -135,22 +135,39 @@ def load_test_set(file_path: str, rag_flag: bool) -> List[Dict]:
 def extract_evaluation_metrics(eval_response_text: str) -> Dict:
     text = eval_response_text
 
-    # feedback: everything before the first score marker
-    feedback = text.split("[SCORE_FACTUALITY]")[0].strip()
+    # Helper function to safely extract value after a marker
+    def safe_extract(marker: str, default_value=None):
+        if marker not in text:
+            return default_value
+        parts = text.split(marker)
+        if len(parts) < 2:
+            return default_value
+        return parts[1].strip()
 
-    factuality_score = int(
-        text.split("[SCORE_FACTUALITY]")[1].split("[SCORE_RELEVANCE]")[0].strip()
-    )
-    relevance_score = int(
-        text.split("[SCORE_RELEVANCE]")[1].split("[SCORE_COMPLETENESS]")[0].strip()
-    )
-    completeness_score = int(
-        text.split("[SCORE_COMPLETENESS]")[1].split("[SCORE_CONFIDENCE]")[0].strip()
-    )
-    confidence_score = int(
-        text.split("[SCORE_CONFIDENCE]")[1].split("[CORRECTNESS]")[0].strip()
-    )
-    correctness = text.split("[CORRECTNESS]")[1].strip()
+    # Helper function to extract score between two markers
+    def safe_extract_score(start_marker: str, end_marker: str, default_value=None):
+        if start_marker not in text:
+            return default_value
+        parts = text.split(start_marker)
+        if len(parts) < 2:
+            return default_value
+        value_part = parts[1].split(end_marker)[0].strip()
+        try:
+            return int(value_part)
+        except (ValueError, IndexError):
+            return default_value
+
+    # feedback: everything before the first score marker
+    if "[SCORE_FACTUALITY]" in text:
+        feedback = text.split("[SCORE_FACTUALITY]")[0].strip()
+    else:
+        feedback = text.strip()
+
+    factuality_score = safe_extract_score("[SCORE_FACTUALITY]", "[SCORE_RELEVANCE]")
+    relevance_score = safe_extract_score("[SCORE_RELEVANCE]", "[SCORE_COMPLETENESS]")
+    completeness_score = safe_extract_score("[SCORE_COMPLETENESS]", "[SCORE_CONFIDENCE]")
+    confidence_score = safe_extract_score("[SCORE_CONFIDENCE]", "[CORRECTNESS]")
+    correctness = safe_extract("[CORRECTNESS]", "N/A")
 
     return {
         "feedback": feedback,
