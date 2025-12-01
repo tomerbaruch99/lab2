@@ -260,13 +260,20 @@ def chunk_text(text: str, max_chars: int = 4000, overlap: int = 400) -> List[Tup
         if cut >= n:
             break
         
-        # Calculate next start position
+        # Calculate next start position with overlap
         next_start = max(0, cut - overlap)
         
         # Safety check: ensure we're making progress
+        # We should advance by at least (max_chars - overlap) to avoid infinite loops
+        min_advance = max(1, max_chars - overlap)
         if next_start <= start:
-            # If we're not making progress, force advancement
-            next_start = start + 1
+            # If we're not making progress, force advancement by minimum amount
+            next_start = start + min_advance
+            if next_start >= n:
+                break
+        elif next_start - start < min_advance:
+            # If we're advancing too slowly, ensure minimum advancement
+            next_start = start + min_advance
             if next_start >= n:
                 break
         

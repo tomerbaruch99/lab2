@@ -92,15 +92,22 @@ class EmbeddingModel:
 def iter_paragraph_chunks(prepared_dir: str,
                           paragraph_parquet: str,
                           paragraph_csv: str,
+                          split_filter: str = None,
+                          long_clauses_path: str = None,
                           show_progress: bool = True) -> Iterable[Dict]:
     """
-    Yield chunks from CUAD paragraph index, behaving like ToS 'documents' list.
+    Yield chunks from CUAD paragraph index, optionally filtered by split.
     Each yielded dict has:
       - text
       - doc_id (contract ID)
       - filename
       - chunk_id
       - start_char
+    
+    Args:
+        split_filter: If "train", "val", or "test", only yield chunks from that split.
+                     Requires long_clauses_path to get split information.
+        long_clauses_path: Path to cuad_long_clauses.parquet to get split info.
     """
 
     parquet_path = os.path.join(prepared_dir, paragraph_parquet)
@@ -117,6 +124,21 @@ def iter_paragraph_chunks(prepared_dir: str,
             f"No paragraph index found at {parquet_path} or {csv_path}"
         )
 
+    # Load split information if filtering by split
+    train_filenames = set()
+    if split_filter and long_clauses_path:
+        if os.path.exists(long_clauses_path):
+            print(f"[STEP] Loading split information from {long_clauses_path}...")
+            long_df = pd.read_parquet(long_clauses_path)
+            if "split" in long_df.columns:
+                train_df = long_df[long_df["split"] == split_filter]
+                train_filenames = set(train_df["filename"].unique())
+                print(f"[INFO] Found {len(train_filenames)} {split_filter} documents")
+            else:
+                print(f"[WARN] No 'split' column in long_clauses, cannot filter by split")
+        else:
+            print(f"[WARN] long_clauses file not found at {long_clauses_path}, cannot filter by split")
+
     print(f"[STEP] Loading chunks from {path} ...")
 
     if ext == ".parquet":
@@ -129,6 +151,12 @@ def iter_paragraph_chunks(prepared_dir: str,
             iterator = tqdm(iterator, total=total_rows, desc="Reading chunks", unit="chunk")
         
         for _, row in iterator:
+            # Filter by split if requested
+            if split_filter and train_filenames:
+                filename = row.get("filename", "")
+                if filename not in train_filenames:
+                    continue
+            
             text = str(row.get("text") or "").strip()
             if not text:
                 continue
@@ -227,7 +255,17 @@ def index_contracts(prepared_dir: str,
                     api_keys_path: str,
                     embedding_model_name: str,
                     index_name: str,
-                    batch_size: int):
+                    batch_size: int,
+                    split_filter: str = None,
+                    long_clauses_path: str = None):
+    """
+    Index contracts into Pinecone.
+    
+    Args:
+        split_filter: If "train", "val", or "test", only index chunks from that split.
+                     Requires long_clauses_path to get split information.
+        long_clauses_path: Path to cuad_long_clauses.parquet to get split info.
+    """
     # 1) Pinecone init
     print("[STEP] Initializing Pinecone...")
     pinecone_api_key = load_pinecone_api_key(api_keys_path)
@@ -246,7 +284,10 @@ def index_contracts(prepared_dir: str,
     # 4) Stream chunks and index in batches
     print(f"\n[STEP] Starting indexing process...")
     print(f"[INFO] Batch size: {batch_size}")
-    print(f"[INFO] Target index: '{index_name}'\n")
+    print(f"[INFO] Target index: '{index_name}'")
+    if split_filter:
+        print(f"[INFO] Filtering by split: '{split_filter}' (only indexing {split_filter} documents)")
+    print()
 
     texts_batch: List[str] = []
     doc_ids_batch: List[str] = []
@@ -257,7 +298,12 @@ def index_contracts(prepared_dir: str,
     batch_num = 0
 
     # Use tqdm for main progress tracking
-    chunk_iterator = iter_paragraph_chunks(prepared_dir, paragraph_parquet, paragraph_csv, show_progress=True)
+    chunk_iterator = iter_paragraph_chunks(
+        prepared_dir, paragraph_parquet, paragraph_csv,
+        split_filter=split_filter,
+        long_clauses_path=long_clauses_path,
+        show_progress=True
+    )
     
     for rec in chunk_iterator:
         texts_batch.append(rec["text"])
@@ -334,11 +380,25 @@ def parse_args():
                         help="Pinecone index name.")
     parser.add_argument("--batch_size", type=int, default=128,
                         help="Batch size for embedding & upsert.")
+    parser.add_argument("--split_filter", type=str, default=None,
+                        choices=["train", "val", "test"],
+                        help="Only index documents from this split (requires --long_clauses_path).")
+    parser.add_argument("--long_clauses_path", type=str, default=None,
+                        help="Path to cuad_long_clauses.parquet for split filtering.")
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
+    
+    # Auto-detect long_clauses path if split_filter is set but path not provided
+    long_clauses_path = args.long_clauses_path
+    if args.split_filter and not long_clauses_path:
+        long_clauses_path = os.path.join(args.prepared_dir, "cuad_long_clauses.parquet")
+        if not os.path.exists(long_clauses_path):
+            print(f"[WARN] Split filter '{args.split_filter}' requested but long_clauses not found at {long_clauses_path}")
+            print(f"[WARN] Proceeding without split filtering...")
+            args.split_filter = None
 
     index_contracts(
         prepared_dir=args.prepared_dir,
@@ -348,6 +408,8 @@ def main():
         embedding_model_name=args.embedding_model,
         index_name=args.index_name,
         batch_size=args.batch_size,
+        split_filter=args.split_filter,
+        long_clauses_path=long_clauses_path,
     )
 
 
