@@ -9,3 +9,5 @@ openai
 google-generativeai
 cohere
 langchain
+matplotlib
+seaborn
