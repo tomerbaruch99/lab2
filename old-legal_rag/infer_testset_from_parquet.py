@@ -2,7 +2,7 @@
 Builds a labeled QA test set from CUAD's prepared clauses.
 
 Output: eval_data/testset.xlsx with columns:
-- Company        (Holds the contract filename)
+- Filename        (Holds the contract filename)
 - Question
 - Right Answer
 - Context        (Clause text used as ground truth support)
@@ -79,9 +79,8 @@ def main():
 
     # Build testset in the same style as ToS project
     testset = pd.DataFrame({
-        # We reuse "Company" column name to stay compatible with your existing evaluation code.
-        # Here it represents the contract filename.
-        "Company": sampled["filename"],
+        # Filename column represents the contract filename.
+        "Filename": sampled["filename"],
         "Question": sampled["question_template"],
         "Right Answer": sampled["answer"],
         "Context": sampled["context"],

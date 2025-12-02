@@ -1,0 +1,13 @@
+python-dotenv
+pandas
+pyarrow
+tqdm
+sentence-transformers
+faiss-cpu
+pinecone
+openai
+google-generativeai
+cohere
+langchain
+matplotlib
+seaborn

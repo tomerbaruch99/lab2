@@ -202,7 +202,7 @@ def iter_paragraph_chunks(prepared_dir: str,
 
 
 # ===============================
-# Upsert helper – ToS-style
+# Upsert helper
 # ===============================
 
 def upsert_index(index,

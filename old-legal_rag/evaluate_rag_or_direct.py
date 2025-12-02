@@ -115,7 +115,7 @@ def load_test_set(file_path: str, rag_flag: bool) -> List[Dict]:
         question = row["Question"]
         answer = row["RAG Answer"] if rag_flag else row["Direct Answer"]
         ground_truth = row["Right Answer"]
-        company = row["Company"]
+        filename = row["Filename"]
         similarity_score = row["Similarity Score"]
         optimal_index = row["Optimal Index"] if "Optimal Index" in result_df.columns else None
 
@@ -124,7 +124,7 @@ def load_test_set(file_path: str, rag_flag: bool) -> List[Dict]:
                 "question": question,
                 "generated_answer": answer,
                 "true_answer": ground_truth,
-                "company": company,
+                "filename": filename,
                 "similarity_score": similarity_score,
                 "optimal_index": optimal_index,
             }

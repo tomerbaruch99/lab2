@@ -42,9 +42,9 @@ This project implements a RAG (Retrieval-Augmented Generation) system for answer
 - **Input**: `cuad_long_clauses.parquet` (from step 1)
 - **Process**:
   - Samples 200 QA pairs from test split
-  - Maps to testset format: (Company, Question, Right Answer, Context)
+  - Maps to testset format: (Filename, Question, Right Answer, Context)
 - **Output**: `eval_data/testset.parquet`
-- **Note**: "Company" column contains CSV filenames (e.g., "file.pdf")
+- **Note**: "Filename" column contains CSV filenames (e.g., "file.pdf")
 
 ### 4a. RAG Inference for New Documents (`infer_new_document.py`) ⭐ **USE THIS FOR ACTUAL INFERENCE**
 - **Input**: 
@@ -112,7 +112,7 @@ cuad_long_clauses.parquet (filename from CSV)
   ↓
 infer_testset_from_parquet.py
   ↓
-testset.parquet (Company = CSV filename)
+testset.parquet (Filename = CSV filename)
   ↓
 run_rag_or_direct_answer.py
   ↓

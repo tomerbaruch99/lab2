@@ -388,18 +388,18 @@ def main():
 
     results = []
     for _, row in tqdm(testset.iterrows(), total=len(testset), desc="Evaluating questions"):
-        company = str(row["Company"])          # This is the test document filename
+        filename = str(row["Filename"])          # This is the test document filename
         question = str(row["Question"])
         right_answer = str(row["Right Answer"])
         context = str(row.get("Context", ""))
 
         # --- Load test document ---
         try:
-            test_document_chunks = load_and_chunk_test_document(company)
+            test_document_chunks = load_and_chunk_test_document(filename)
             # Get full document text for direct mode
             test_document_text = "\n\n".join([c["text"] for c in test_document_chunks])
         except Exception as e:
-            print(f"[WARN] Could not load test document {company}: {e}")
+            print(f"[WARN] Could not load test document {filename}: {e}")
             test_document_chunks = []
             test_document_text = None
 
@@ -428,7 +428,7 @@ def main():
 
         results.append(
             {
-                "Company": company,
+                "Filename": filename,
                 "Question": question,
                 "Right Answer": right_answer,
                 "Context": context,
