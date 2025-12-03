@@ -11,9 +11,11 @@ Before you begin, ensure you have:
    python --version  # Should show 3.9 or higher
    ```
 
-2. **Scraped data file**: `scrape_and_prepare_data/haifa_scraped.json`
+2. **Scraped data file**: `scrape_and_prepare_data/haifa_scraped_with_hiperlinks.json`
+   - **Download from SharePoint**: [haifa_scraped_with_hiperlinks.json](https://technionmail-my.sharepoint.com/:u:/g/personal/amit_shirazi_campus_technion_ac_il/ETm0fnq5sGpAtznQTJ7zpZoB0rvYPnz4r1VG42VcX1suJA?e=LHHFSK)
+   - Download the file and place it in the `scrape_and_prepare_data/` directory
    - This file must exist before running data preparation
-   - The scraper notebook (`scrape_and_prepare_data/haifa_muni_scraper.ipynb`) creates this file
+   - Alternatively, you can use the scraper notebook (`scrape_and_prepare_data/haifa_muni_scraper.ipynb`) to create this file
 
 3. **API keys file**: `utils/api_keys.json`
    - **Must be created before running indexing or Gemini examples**
@@ -41,7 +43,7 @@ Here's a single, linear path to get the system running:
 python scrape_and_prepare_data/data_preparation.py
 ```
 
-This processes `scrape_and_prepare_data/haifa_scraped.json` and creates prepared chunks in `haifa_prepared_data/`.
+This processes `scrape_and_prepare_data/haifa_scraped_with_hiperlinks.json` and creates prepared chunks in `haifa_prepared_data/`.
 
 ### 2. Index into Pinecone
 
@@ -70,7 +72,7 @@ That's it! You now have a working RAG system. For more details on each step, see
 project/
 ├── scrape_and_prepare_data/
 │   ├── data_preparation.py    # Prepares scraped data for RAG indexing
-│   ├── haifa_scraped.json    # Scraped data from Haifa municipality website
+│   ├── haifa_scraped_with_hiperlinks.json    # Scraped data from Haifa municipality website (download from SharePoint - see Prerequisites)
 │   └── haifa_muni_scraper.ipynb
 ├── indexing.py               # Indexes prepared data into Pinecone
 ├── retriever.py             # Retrieves relevant chunks from Pinecone
@@ -99,7 +101,7 @@ The data preparation process converts the scraped JSON data into a format suitab
 
 ### Input Format
 
-The input JSON file (`haifa_scraped.json`) should contain an array of page objects, each with:
+The input JSON file (`haifa_scraped_with_hiperlinks.json`) should contain an array of page objects, each with:
 - `url`: The page URL
 - `title`: Page title
 - `subtitle`: Page subtitle (optional)
@@ -110,7 +112,7 @@ The input JSON file (`haifa_scraped.json`) should contain an array of page objec
 ```bash
 cd scrape_and_prepare_data
 python data_preparation.py \
-    --input_json haifa_scraped.json \
+    --input_json haifa_scraped_with_hiperlinks.json \
     --out_dir ../haifa_prepared_data \
     --chunk_chars 1000 \
     --chunk_overlap 200
@@ -119,7 +121,7 @@ python data_preparation.py \
 Or from the project root:
 ```bash
 python scrape_and_prepare_data/data_preparation.py \
-    --input_json scrape_and_prepare_data/haifa_scraped.json \
+    --input_json scrape_and_prepare_data/haifa_scraped_with_hiperlinks.json \
     --out_dir haifa_prepared_data \
     --chunk_chars 1000 \
     --chunk_overlap 200
@@ -127,7 +129,7 @@ python scrape_and_prepare_data/data_preparation.py \
 
 ### Parameters
 
-- `--input_json`: Path to the input JSON file (default: `./scrape_and_prepare_data/haifa_scraped.json`)
+- `--input_json`: Path to the input JSON file (default: `./scrape_and_prepare_data/haifa_scraped_with_hiperlinks.json`)
 - `--out_dir`: Output directory for prepared data (default: `./scrape_and_prepare_data/haifa_prepared_data`)
 - `--chunk_chars`: Maximum characters per chunk (default: 1000)
 - `--chunk_overlap`: Character overlap between chunks (default: 200)
