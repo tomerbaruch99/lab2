@@ -19,7 +19,7 @@ Usage as module:
     
     retriever = Retriever(
         api_keys_path="api_keys.json",
-        embedding_model_name="intfloat/multilingual-e5-base",
+        embedding_model_name="paraphrase-multilingual-MiniLM-L12-v2",
         index_name="haifa-municipality-rag-index"
     )
     
@@ -170,6 +170,9 @@ class Retriever:
                 result["doc_id"] = match.metadata.get("doc_id", "")
                 result["chunk_id"] = match.metadata.get("chunk_id", "")
                 result["file_type"] = file_type
+                # Pass through hyperlinks if available
+                if "hyperlinks" in match.metadata:
+                    result["hyperlinks"] = match.metadata.get("hyperlinks", "")
             
             if include_values and match.values:
                 result["values"] = match.values

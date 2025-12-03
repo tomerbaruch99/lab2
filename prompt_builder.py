@@ -19,6 +19,8 @@ Usage:
 
 from typing import List, Dict, Optional
 from enum import Enum
+import json
+import re
 
 
 class PromptStyle(Enum):
@@ -36,6 +38,9 @@ class PromptBuilder:
     Formats user questions with retrieved chunks into prompts
     suitable for language models.
     """
+    
+    # Regex to extract URLs from [URL: ...] format
+    RE_URL_PATTERN = re.compile(r'\[URL:\s*([^\]]+)\]')
     
     def __init__(
         self,
@@ -62,6 +67,39 @@ class PromptBuilder:
         else:
             self.system_instruction = self._default_system_instruction()
     
+    def _extract_hyperlinks_from_chunk(self, chunk: Dict) -> List[str]:
+        """
+        Extract hyperlinks from a chunk.
+        
+        Args:
+            chunk: Chunk dictionary with text content
+        
+        Returns:
+            List of unique URLs found in the chunk
+        """
+        hyperlinks = []
+        
+        # Try to get hyperlinks from metadata (if stored during data preparation)
+        if chunk.get("hyperlinks"):
+            try:
+                if isinstance(chunk["hyperlinks"], str):
+                    hyperlinks = json.loads(chunk["hyperlinks"])
+                elif isinstance(chunk["hyperlinks"], list):
+                    hyperlinks = chunk["hyperlinks"]
+            except (json.JSONDecodeError, TypeError):
+                pass
+        
+        # Also extract from text content (fallback)
+        text_content = chunk.get("chunk_text_only") or chunk.get("text", "")
+        if text_content:
+            urls_from_text = self.RE_URL_PATTERN.findall(str(text_content))
+            for url in urls_from_text:
+                url = url.strip()
+                if url and url not in hyperlinks:
+                    hyperlinks.append(url)
+        
+        return hyperlinks
+    
     def _default_system_instruction(self) -> str:
         """Default system instruction for Haifa municipality chatbot."""
         return """אתה עוזר AI מומחה של עיריית חיפה. תפקידך לענות על שאלות של תושבים על בסיס המידע הרשמי מאתר העירייה.
@@ -73,7 +111,8 @@ class PromptBuilder:
 4. ציין את המקורות (URLs) כשאתה מצטט מידע
 5. אם יש מספר מקורות, ציין את כולם
 6. שמור על דיוק - אל תמציא מידע שלא קיים במסמכים
-7. חשוב: אסור לתת ייעוץ משפטי או פיננסי מעבר לתיאור מה שכתוב במסמכים. תאר את המידע הקיים במסמכים, אך אל תמליץ או תייעץ מעבר לכך"""
+7. חשוב: אסור לתת ייעוץ משפטי או פיננסי מעבר לתיאור מה שכתוב במסמכים. תאר את המידע הקיים במסמכים, אך אל תמליץ או תייעץ מעבר לכך
+8. כאשר אתה מזכיר שירות, טופס, או מידע שיש לו קישור (hyperlink) במסמכים, הקפד לכלול את הקישור הרלוונטי בתשובתך. הקישורים מסומנים כ-[URL: ...] בטקסט או מופיעים ברשימת הקישורים של כל מקור"""
     
     def build_prompt(
         self,
@@ -151,6 +190,14 @@ class PromptBuilder:
                     content = content[:self.max_chunk_length] + "..."
                 chunk_parts.append(content)
                 
+                # Extract and include hyperlinks from the chunk
+                hyperlinks = self._extract_hyperlinks_from_chunk(chunk)
+                if hyperlinks:
+                    chunk_parts.append("")
+                    chunk_parts.append("קישורים רלוונטיים:")
+                    for link in hyperlinks[:10]:  # Limit to 10 links per chunk
+                        chunk_parts.append(f"  - {link}")
+                
                 parts.append("\n".join(chunk_parts))
                 if i < len(chunks):
                     parts.append("")
@@ -169,6 +216,7 @@ class PromptBuilder:
         
         if include_sources:
             parts.append("אם אתה מצטט מידע, ציין את המקור (URL) של המסמך.")
+            parts.append("כאשר אתה מזכיר שירות, טופס, או פעולה שיש לה קישור במסמכים, הקפד לכלול את הקישור הרלוונטי בתשובתך.")
         
         return "\n".join(parts)
     
@@ -194,10 +242,17 @@ class PromptBuilder:
             if len(content) > self.max_chunk_length:
                 content = content[:self.max_chunk_length] + "..."
             
+            chunk_line = f"{i}. "
             if include_sources and chunk.get("url"):
-                parts.append(f"{i}. [{chunk['url']}] {content}")
-            else:
-                parts.append(f"{i}. {content}")
+                chunk_line += f"[{chunk['url']}] "
+            chunk_line += content
+            
+            # Add hyperlinks if available
+            hyperlinks = self._extract_hyperlinks_from_chunk(chunk)
+            if hyperlinks:
+                chunk_line += f" [קישורים: {', '.join(hyperlinks[:3])}]"
+            
+            parts.append(chunk_line)
         
         parts.append("")
         parts.append(f"שאלה: {question}")
@@ -233,6 +288,12 @@ class PromptBuilder:
             if chunk_info:
                 parts.append(f"• {' | '.join(chunk_info)}")
             parts.append(f"  {content}")
+            
+            # Add hyperlinks if available
+            hyperlinks = self._extract_hyperlinks_from_chunk(chunk)
+            if hyperlinks:
+                parts.append(f"  קישורים: {', '.join(hyperlinks[:5])}")
+            
             parts.append("")
         
         parts.append(f"תבסס על המידע הזה, {question}")
@@ -287,6 +348,12 @@ class PromptBuilder:
                 if len(content) > self.max_chunk_length:
                     content = content[:self.max_chunk_length] + "..."
                 parts.append(content)
+                
+                # Add hyperlinks if available
+                hyperlinks = self._extract_hyperlinks_from_chunk(chunk)
+                if hyperlinks:
+                    parts.append(f"קישורים: {', '.join(hyperlinks[:5])}")
+                
                 parts.append("")
         
         # Question

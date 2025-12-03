@@ -24,6 +24,8 @@ SentenceTransformer models tested:
 - paraphrase-multilingual-mpnet-base-v2 (high quality, slower)
 - distiluse-base-multilingual-cased-v2 (balanced)
 - intfloat/multilingual-e5-base (smaller E5 variant)
+- intfloat/multilingual-e5-small (same family as e5-base, smaller & faster)
+- sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 (multilingual MiniLM variant, faster than e5-base)
 - sentence-transformers/all-mpnet-base-v2 (English baseline)
 """
 
@@ -113,6 +115,12 @@ EMBEDDING_MODELS = [
     {
         "name": "intfloat/multilingual-e5-base",
         "description": "SentenceTransformer - Multilingual E5 base (smaller than large)",
+        "recommended": False,
+        "type": "SentenceTransformer",
+    },
+    {
+        "name": "intfloat/multilingual-e5-small",
+        "description": "SentenceTransformer - Multilingual E5 small (same family as e5-base, smaller & faster)",
         "recommended": False,
         "type": "SentenceTransformer",
     },
@@ -293,8 +301,8 @@ def test_embedding_similarity(
     print(f"{'='*60}")
     
     try:
-        # Load embedding model
-        embed_model = EmbeddingModel(model_name, verbose=False)
+        # Load embedding model (force CPU to avoid CUDA compatibility issues)
+        embed_model = EmbeddingModel(model_name, device="cpu", verbose=False)
         
         # Embed query
         query_embedding = embed_model.embed_query(query)
@@ -456,7 +464,8 @@ def evaluate_models_on_testset(
         print(f"Description: {model_info['description']}")
 
         try:
-            embed_model = EmbeddingModel(model_name, verbose=False)
+            # Force CPU to avoid CUDA compatibility issues
+            embed_model = EmbeddingModel(model_name, device="cpu", verbose=False)
         except Exception as e:
             print(f"❌ FAILED to load model: {e}")
             continue

@@ -129,7 +129,7 @@ project/
 
 All modules use consistent defaults:
 
-- **Embedding Model**: `intfloat/multilingual-e5-base`
+- **Embedding Model**: `paraphrase-multilingual-MiniLM-L12-v2`
 - **Pinecone Index**: `haifa-municipality-rag-index`
 - **Gemini Model**: `gemini-2.5-flash`
 - **API Keys Path**: `utils/api_keys.json`

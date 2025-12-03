@@ -12,7 +12,7 @@ Usage:
     python indexing.py \
         --prepared_dir ./scrape_and_prepare_data/haifa_prepared_data \
         --api_keys_path api_keys.json \
-        --embedding_model intfloat/multilingual-e5-base \
+        --embedding_model paraphrase-multilingual-MiniLM-L12-v2 \
         --index_name haifa-municipality-rag-index \
         --batch_size 128
 """
@@ -105,6 +105,7 @@ def iter_chunks(prepared_dir: str,
                 "subtitle": row.get("subtitle", ""),
                 "chunk_text_only": row.get("chunk_text_only", ""),
                 "file_type": row.get("file_type", "html"),
+                "hyperlinks": row.get("hyperlinks", "[]"),  # JSON string of hyperlinks
             }
 
     else:  # CSV
@@ -136,6 +137,7 @@ def iter_chunks(prepared_dir: str,
                     "subtitle": row.get("subtitle", ""),
                     "chunk_text_only": row.get("chunk_text_only", ""),
                     "file_type": row.get("file_type", "html"),
+                    "hyperlinks": row.get("hyperlinks", "[]"),  # JSON string of hyperlinks
                 }
         
         if pbar:
@@ -187,13 +189,17 @@ def upsert_index(index,
                  subtitles: List[str] = None,
                  chunk_text_only_list: List[str] = None,
                  file_types: List[str] = None,
+                 hyperlinks_list: List[str] = None,
+                 chunk_config: str = None,
                  namespace: str = None,
                  show_progress: bool = False):
     """
     Upsert vectors to Pinecone.
       - id = "{sanitized_doc_id}::chunk-{chunk_id}" (ASCII-safe for Pinecone requirements)
       - metadata = { "text": <full chunk with title/subtitle>, "doc_id": ..., "filename": ..., 
-                     "chunk_id": ..., "url": ..., "title": ..., "subtitle": ..., "chunk_text_only": ... }
+                     "chunk_id": ..., "url": ..., "title": ..., "subtitle": ..., "chunk_text_only": ...,
+                     "chunk_config": ... (if provided) }
+      - chunk_config: Optional chunking configuration string (e.g., "chunk1000_overlap200") for tracking and comparison
       - namespace: Optional namespace for dev/prod/language separation
     
     Note: "text" is used for embedding (includes title/subtitle for better retrieval),
@@ -269,6 +275,12 @@ def upsert_index(index,
             metadata["chunk_text_only"] = str(chunk_text_only_list[local_idx])
         if file_types and local_idx < len(file_types) and file_types[local_idx]:
             metadata["file_type"] = str(file_types[local_idx])
+        # Add hyperlinks if available (stored as JSON string)
+        if hyperlinks_list and local_idx < len(hyperlinks_list) and hyperlinks_list[local_idx]:
+            metadata["hyperlinks"] = str(hyperlinks_list[local_idx])
+        # Add chunk_config if provided (for comparing different chunking configurations)
+        if chunk_config:
+            metadata["chunk_config"] = str(chunk_config)
         
         # Validate metadata size (Pinecone has 40KB limit per metadata field)
         # We'll truncate text if needed, but keep it reasonably sized
@@ -324,11 +336,13 @@ def index_haifa_data(prepared_dir: str,
                     embedding_model_name: str,
                     index_name: str,
                     batch_size: int,
+                    chunk_config: str = None,
                     namespace: str = None):
     """
     Index Haifa municipality data into Pinecone.
     
     Args:
+        chunk_config: Chunking configuration string (e.g., "chunk1000_overlap200") for metadata tracking
         namespace: Optional namespace for dev/prod/language separation (e.g., "dev", "prod", "hebrew", "arabic")
     """
     # 1) Pinecone init
@@ -350,6 +364,8 @@ def index_haifa_data(prepared_dir: str,
     print(f"\n[STEP] Starting indexing process...")
     print(f"[INFO] Batch size: {batch_size}")
     print(f"[INFO] Target index: '{index_name}'")
+    if chunk_config:
+        print(f"[INFO] Chunk config: '{chunk_config}'")
     if namespace:
         print(f"[INFO] Namespace: '{namespace}'")
     print()
@@ -363,6 +379,7 @@ def index_haifa_data(prepared_dir: str,
     subtitles_batch: List[str] = []
     chunk_text_only_list_batch: List[str] = []
     file_types_batch: List[str] = []
+    hyperlinks_batch: List[str] = []
 
     total = 0
     batch_num = 0
@@ -382,6 +399,7 @@ def index_haifa_data(prepared_dir: str,
         subtitles_batch.append(rec.get("subtitle", ""))
         chunk_text_only_list_batch.append(rec.get("chunk_text_only", ""))
         file_types_batch.append(rec.get("file_type", "html"))
+        hyperlinks_batch.append(rec.get("hyperlinks", "[]"))
 
         if len(texts_batch) >= batch_size:
             batch_num += 1
@@ -400,6 +418,8 @@ def index_haifa_data(prepared_dir: str,
                 subtitles=subtitles_batch,
                 chunk_text_only_list=chunk_text_only_list_batch,
                 file_types=file_types_batch,
+                hyperlinks_list=hyperlinks_batch,
+                chunk_config=chunk_config,
                 namespace=namespace,
                 show_progress=True,
             )
@@ -408,7 +428,7 @@ def index_haifa_data(prepared_dir: str,
 
             # reset batch
             texts_batch, doc_ids_batch, filenames_batch, chunk_ids_batch = [], [], [], []
-            urls_batch, titles_batch, subtitles_batch, chunk_text_only_list_batch, file_types_batch = [], [], [], [], []
+            urls_batch, titles_batch, subtitles_batch, chunk_text_only_list_batch, file_types_batch, hyperlinks_batch = [], [], [], [], [], []
 
     # Final remainder
     if texts_batch:
@@ -428,6 +448,8 @@ def index_haifa_data(prepared_dir: str,
             subtitles=subtitles_batch,
             chunk_text_only_list=chunk_text_only_list_batch,
             file_types=file_types_batch,
+            hyperlinks_list=hyperlinks_batch,
+            chunk_config=chunk_config,
             namespace=namespace,
             show_progress=True,
         )
@@ -471,13 +493,21 @@ def parse_args():
 def main():
     args = parse_args()
     
-    # If config is provided, use it to construct filenames
+    # Extract chunk_config from filename or use --config parameter
+    chunk_config = None
     if args.config:
+        # Use explicit config parameter
+        chunk_config = args.config
         paragraph_parquet = f"haifa_paragraph_index_config_{args.config}.parquet"
         paragraph_csv = f"haifa_paragraph_index_config_{args.config}.csv"
     else:
         paragraph_parquet = args.paragraph_parquet
         paragraph_csv = args.paragraph_csv
+        # Try to extract config from filename (e.g., "haifa_paragraph_index_config_chunk1000_overlap200.parquet")
+        import re
+        config_match = re.search(r'config_(chunk\d+_overlap\d+)', paragraph_parquet)
+        if config_match:
+            chunk_config = config_match.group(1)
     
     index_haifa_data(
         prepared_dir=args.prepared_dir,
@@ -487,6 +517,7 @@ def main():
         embedding_model_name=args.embedding_model,
         index_name=args.index_name,
         batch_size=args.batch_size,
+        chunk_config=chunk_config,
         namespace=args.namespace,
     )
 

@@ -32,6 +32,33 @@ from tqdm import tqdm
 
 RE_WHITESPACE = re.compile(r"[ \t\f\v]+")
 RE_MULTIPLE_NEWLINES = re.compile(r"\n{3,}")
+# Regex to extract URLs from [URL: ...] format
+RE_URL_PATTERN = re.compile(r'\[URL:\s*([^\]]+)\]')
+
+
+def extract_hyperlinks(text: str) -> List[str]:
+    """
+    Extract hyperlinks from text in [URL: ...] format.
+    
+    Args:
+        text: Text containing hyperlinks in [URL: ...] format
+    
+    Returns:
+        List of unique URLs found in the text
+    """
+    if not text or pd.isna(text):
+        return []
+    
+    urls = RE_URL_PATTERN.findall(str(text))
+    # Remove duplicates while preserving order
+    seen = set()
+    unique_urls = []
+    for url in urls:
+        url = url.strip()
+        if url and url not in seen:
+            seen.add(url)
+            unique_urls.append(url)
+    return unique_urls
 
 
 def clean_text(text: str) -> str:
@@ -169,6 +196,11 @@ def process_page(page: Dict, chunk_chars: int, chunk_overlap: int) -> List[Dict]
         elif ".pdf" in url.lower():
             file_type = "pdf"
         
+        # Extract hyperlinks from the chunk content
+        hyperlinks = extract_hyperlinks(chunk_text_content)
+        # Store as JSON string for compatibility with parquet/CSV
+        hyperlinks_json = json.dumps(hyperlinks, ensure_ascii=False) if hyperlinks else "[]"
+        
         chunk_records.append({
             "doc_id": doc_id,
             "url": url,
@@ -180,6 +212,7 @@ def process_page(page: Dict, chunk_chars: int, chunk_overlap: int) -> List[Dict]
             "subtitle": subtitle,
             "chunk_text_only": chunk_text_content,
             "file_type": file_type,  # Add file type metadata
+            "hyperlinks": hyperlinks_json,  # Store hyperlinks as JSON string
         })
     
     return chunk_records

@@ -19,8 +19,8 @@ PINECONE_ENV = os.getenv("PINECONE_ENVIRONMENT")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 # Embedding Model
-device = "cuda" if SentenceTransformer('intfloat/multilingual-e5-base').device == 'cuda' else "cpu"
-embed_model = SentenceTransformer("intfloat/multilingual-e5-base", device=device)
+device = "cuda" if SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2').device == 'cuda' else "cpu"
+embed_model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2", device=device)
 class CustomEmbedding:
     def __init__(self, model):
         self.model = model

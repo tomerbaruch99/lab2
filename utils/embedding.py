@@ -4,6 +4,7 @@ Embedding model wrapper shared across the RAG system.
 
 from typing import List
 
+import torch
 from sentence_transformers import SentenceTransformer
 
 
@@ -14,15 +15,18 @@ class EmbeddingModel:
     Used for both indexing and retrieval to ensure consistent embeddings.
     """
     
-    def __init__(self, model_name: str, device: str = "cpu", verbose: bool = False):
+    def __init__(self, model_name: str, device: str = None, verbose: bool = False):
         """
         Initialize the embedding model.
         
         Args:
             model_name: Name of the SentenceTransformer model
-            device: Device to use ("cpu" or "cuda")
+            device: Device to use ("cpu" or "cuda"). If None, automatically uses CUDA if available.
             verbose: Whether to print loading progress
         """
+        if device is None:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        
         if verbose:
             print(f"[STEP] Loading embedding model '{model_name}'...")
         

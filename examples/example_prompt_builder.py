@@ -23,7 +23,7 @@ def example_basic_prompt():
     # Initialize retriever and get chunks
     retriever = Retriever(
         api_keys_path="../utils/api_keys.json",
-        embedding_model_name="intfloat/multilingual-e5-base",
+        embedding_model_name="paraphrase-multilingual-MiniLM-L12-v2",
         index_name="haifa-municipality-rag-index",
     )
     

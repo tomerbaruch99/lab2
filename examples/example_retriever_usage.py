@@ -20,10 +20,10 @@ def example_basic_retrieval():
     print("="*60)
     
     # Initialize retriever
-    # Using the default embedding model optimized for Hebrew: intfloat/multilingual-e5-base
+    # Using the default embedding model optimized for Hebrew: paraphrase-multilingual-MiniLM-L12-v2
     retriever = Retriever(
         api_keys_path="utils/api_keys.json",
-        embedding_model_name="intfloat/multilingual-e5-base",
+        embedding_model_name="paraphrase-multilingual-MiniLM-L12-v2",
         index_name="haifa-municipality-rag-index",
     )
     

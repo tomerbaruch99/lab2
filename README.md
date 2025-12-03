@@ -164,7 +164,7 @@ After data preparation, index the chunks into Pinecone for retrieval.
 python indexing.py \
     --prepared_dir ./scrape_and_prepare_data/haifa_prepared_data \
     --api_keys_path utils/api_keys.json \
-    --embedding_model intfloat/multilingual-e5-base \
+    --embedding_model paraphrase-multilingual-MiniLM-L12-v2 \
     --index_name haifa-municipality-rag-index \
     --batch_size 128
 ```
@@ -176,7 +176,7 @@ python indexing.py \
 - `--paragraph_csv`: CSV filename fallback (default: `haifa_paragraph_index_config_chunk1000_overlap200.csv`)
 - `--config`: Config suffix to use (e.g., `chunk1000_overlap200`). If provided, overrides paragraph_parquet/csv.
 - `--api_keys_path`: Path to API keys file (default: `utils/api_keys.json`)
-- `--embedding_model`: SentenceTransformer model name (default: `intfloat/multilingual-e5-base`)
+- `--embedding_model`: SentenceTransformer model name (default: `paraphrase-multilingual-MiniLM-L12-v2`)
 - `--index_name`: Pinecone index name (default: `haifa-municipality-rag-index`)
 - `--batch_size`: Batch size for embedding/upsert (default: 128)
 - `--namespace`: Optional namespace for dev/prod/language separation
@@ -247,7 +247,7 @@ from retriever import Retriever
 # Initialize retriever
 retriever = Retriever(
     api_keys_path="utils/api_keys.json",
-    embedding_model_name="intfloat/multilingual-e5-base",
+    embedding_model_name="paraphrase-multilingual-MiniLM-L12-v2",
     index_name="haifa-municipality-rag-index",
     namespace="dev"  # Optional: for dev/prod/language separation
 )
@@ -295,7 +295,7 @@ retriever.delete_by_doc_id("resident-service")
 ## Notes
 
 - The content is in Hebrew, so ensure your embedding model supports Hebrew text
-- The default model `intfloat/multilingual-e5-base` is optimized for Hebrew and multilingual content
+- The default model `paraphrase-multilingual-MiniLM-L12-v2` is optimized for Hebrew and multilingual content
 - This model was selected based on performance comparison for Hebrew text similarity
 - The retriever uses the same embedding model as indexing for consistency
 - Document-based IDs (e.g., `"doc_id::chunk-0"`) make it easy to fetch/delete specific documents

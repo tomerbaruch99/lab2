@@ -23,7 +23,7 @@ def diagnose_retrieval_issues():
     
     retriever = Retriever(
         api_keys_path="../utils/api_keys.json",
-        embedding_model_name="intfloat/multilingual-e5-base",
+        embedding_model_name="paraphrase-multilingual-MiniLM-L12-v2",
         index_name="haifa-municipality-rag-index",
     )
     
@@ -97,7 +97,7 @@ def diagnose_retrieval_issues():
     print("\n2. PREFER HTML/TXT for clearer answers:")
     print("   Use: prefer_txt_html=True")
     print("\n3. Embedding model information:")
-    print("   Current: 'intfloat/multilingual-e5-base'")
+    print("   Current: 'paraphrase-multilingual-MiniLM-L12-v2'")
     print("   (Optimized for Hebrew and multilingual content)")
     print("\n4. Check if indexed content actually contains relevant information")
     print("   about your query topic.")
