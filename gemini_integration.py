@@ -222,7 +222,7 @@ class GeminiRAG:
         self,
         api_keys_path: str = DEFAULT_API_KEYS_PATH,
         gemini_model_name: str = DEFAULT_GEMINI_MODEL,
-        embedding_model_name: str = "all-MiniLM-L6-v2",
+        embedding_model_name: str = "intfloat/multilingual-e5-base",
         index_name: str = "haifa-municipality-rag-index",
         namespace: Optional[str] = None,
         prompt_style: PromptStyle = PromptStyle.DETAILED,

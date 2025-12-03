@@ -164,7 +164,7 @@ After data preparation, index the chunks into Pinecone for retrieval.
 python indexing.py \
     --prepared_dir ./scrape_and_prepare_data/haifa_prepared_data \
     --api_keys_path utils/api_keys.json \
-    --embedding_model all-MiniLM-L6-v2 \
+    --embedding_model intfloat/multilingual-e5-base \
     --index_name haifa-municipality-rag-index \
     --batch_size 128
 ```
@@ -176,10 +176,37 @@ python indexing.py \
 - `--paragraph_csv`: CSV filename fallback (default: `haifa_paragraph_index_config_chunk1000_overlap200.csv`)
 - `--config`: Config suffix to use (e.g., `chunk1000_overlap200`). If provided, overrides paragraph_parquet/csv.
 - `--api_keys_path`: Path to API keys file (default: `utils/api_keys.json`)
-- `--embedding_model`: SentenceTransformer model name (default: `all-MiniLM-L6-v2`)
+- `--embedding_model`: SentenceTransformer model name (default: `intfloat/multilingual-e5-base`)
 - `--index_name`: Pinecone index name (default: `haifa-municipality-rag-index`)
 - `--batch_size`: Batch size for embedding/upsert (default: 128)
 - `--namespace`: Optional namespace for dev/prod/language separation
+
+### Troubleshooting: Dimension Mismatch Error
+
+If you get an error like `Vector dimension 768 does not match the dimension of the index 384`, it means your existing Pinecone index was created with a different embedding model. You need to recreate the index with the correct dimension.
+
+**Option 1: Use the helper script (Recommended)**
+```bash
+python utils/recreate_index.py --index_name haifa-municipality-rag-index
+```
+
+**Option 2: Manually delete and recreate**
+```python
+from pinecone import Pinecone
+from utils import load_pinecone_api_key, DEFAULT_API_KEYS_PATH
+
+# Load API key and initialize
+api_key = load_pinecone_api_key(DEFAULT_API_KEYS_PATH)
+pc = Pinecone(api_key=api_key)
+
+# Delete old index
+pc.delete_index("haifa-municipality-rag-index")
+
+# Wait for deletion to complete, then run indexing.py
+# It will automatically create a new index with the correct dimension
+```
+
+**Important**: Changing embedding models requires re-indexing all your data, as embeddings are model-specific.
 
 ## Installation
 
@@ -220,7 +247,7 @@ from retriever import Retriever
 # Initialize retriever
 retriever = Retriever(
     api_keys_path="utils/api_keys.json",
-    embedding_model_name="all-MiniLM-L6-v2",
+    embedding_model_name="intfloat/multilingual-e5-base",
     index_name="haifa-municipality-rag-index",
     namespace="dev"  # Optional: for dev/prod/language separation
 )
@@ -268,8 +295,8 @@ retriever.delete_by_doc_id("resident-service")
 ## Notes
 
 - The content is in Hebrew, so ensure your embedding model supports Hebrew text
-- The default model `all-MiniLM-L6-v2` works reasonably well for multilingual content
-- For better Hebrew support, consider using a multilingual model like `paraphrase-multilingual-MiniLM-L12-v2`
+- The default model `intfloat/multilingual-e5-base` is optimized for Hebrew and multilingual content
+- This model was selected based on performance comparison for Hebrew text similarity
 - The retriever uses the same embedding model as indexing for consistency
 - Document-based IDs (e.g., `"doc_id::chunk-0"`) make it easy to fetch/delete specific documents
 

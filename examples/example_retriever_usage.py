@@ -20,24 +20,33 @@ def example_basic_retrieval():
     print("="*60)
     
     # Initialize retriever
+    # Using the default embedding model optimized for Hebrew: intfloat/multilingual-e5-base
     retriever = Retriever(
-        api_keys_path="../utils/api_keys.json",
-        embedding_model_name="all-MiniLM-L6-v2",
+        api_keys_path="utils/api_keys.json",
+        embedding_model_name="intfloat/multilingual-e5-base",
         index_name="haifa-municipality-rag-index",
     )
     
-    # Query
+    # Query - exclude PDFs to get better HTML/TXT results
+    # PDFs often have generic titles and may not be as relevant
     query = "איך משלמים ארנונה?"
-    results = retriever.retrieve(query, top_k=3)
+    results = retriever.retrieve(
+        query, 
+        top_k=5,  # Get more results initially for better filtering
+        exclude_file_types=["pdf"],  # Exclude PDFs to get clearer HTML/TXT results
+        prefer_txt_html=True  # Prefer HTML/TXT over PDFs when available
+    )
     
     print(f"\nQuery: {query}")
-    print(f"Found {len(results)} results:\n")
+    print(f"Found {len(results)} results (PDFs excluded):\n")
     
     for i, result in enumerate(results, 1):
         print(f"Result {i} (score: {result['score']:.4f}):")
+        print(f"  File type: {result.get('file_type', 'unknown')}")
         print(f"  Title: {result.get('title', 'N/A')}")
         print(f"  URL: {result.get('url', 'N/A')}")
-        print(f"  Content preview: {result.get('chunk_text_only', '')[:200]}...")
+        content_preview = result.get('chunk_text_only', result.get('text', ''))
+        print(f"  Content preview: {content_preview[:200]}...")
         print()
 
 
@@ -48,7 +57,7 @@ def example_with_namespace():
     print("="*60)
     
     retriever = Retriever(
-        api_keys_path="../utils/api_keys.json",
+        api_keys_path="utils/api_keys.json",
         index_name="haifa-municipality-rag-index",
         namespace="dev",  # Use dev namespace
     )
@@ -68,7 +77,7 @@ def example_with_filter():
     print("="*60)
     
     retriever = Retriever(
-        api_keys_path="../utils/api_keys.json",
+        api_keys_path="utils/api_keys.json",
         index_name="haifa-municipality-rag-index",
     )
     
@@ -116,7 +125,7 @@ def example_delete_document():
     print("="*60)
     
     retriever = Retriever(
-        api_keys_path="../utils/api_keys.json",
+        api_keys_path="utils/api_keys.json",
         index_name="haifa-municipality-rag-index",
     )
     

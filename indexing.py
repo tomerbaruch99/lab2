@@ -12,13 +12,14 @@ Usage:
     python indexing.py \
         --prepared_dir ./scrape_and_prepare_data/haifa_prepared_data \
         --api_keys_path api_keys.json \
-        --embedding_model all-MiniLM-L6-v2 \
+        --embedding_model intfloat/multilingual-e5-base \
         --index_name haifa-municipality-rag-index \
         --batch_size 128
 """
 
 import os
 import argparse
+import hashlib
 from typing import List, Dict, Iterable
 from urllib.parse import quote
 
@@ -143,24 +144,36 @@ def iter_chunks(prepared_dir: str,
 
 # --- Upsert helper ---
 
-def sanitize_doc_id_for_vector_id(doc_id: str) -> str:
+def sanitize_doc_id_for_vector_id(doc_id: str, max_length: int = 450) -> str:
     """
     Sanitize doc_id to be ASCII-safe for Pinecone vector IDs.
     
-    Pinecone requires vector IDs to be ASCII. This function URL-encodes
-    non-ASCII characters while preserving the structure.
+    Pinecone requires vector IDs to be:
+    - ASCII-only
+    - Maximum 512 characters total
+    
+    This function URL-encodes non-ASCII characters and truncates if needed
+    to leave room for the chunk suffix (::chunk-{chunk_id}).
     
     Args:
         doc_id: Document ID (may contain non-ASCII characters)
+        max_length: Maximum length to allow (default 450 to leave room for ::chunk-{id})
     
     Returns:
-        ASCII-safe version of doc_id
+        ASCII-safe version of doc_id, truncated if necessary
     """
     if not doc_id:
         return ""
     # URL-encode non-ASCII characters to make it ASCII-safe
     # Use quote with safe='' to encode all special characters
-    return quote(str(doc_id), safe='')
+    safe_doc_id = quote(str(doc_id), safe='')
+    
+    # Truncate if too long (leave room for ::chunk-{chunk_id} suffix)
+    if len(safe_doc_id) > max_length:
+        # Truncate and add indicator
+        safe_doc_id = safe_doc_id[:max_length - 3] + "..."
+    
+    return safe_doc_id
 
 
 def upsert_index(index,
@@ -192,27 +205,82 @@ def upsert_index(index,
         zip(embeddings, texts, doc_ids, filenames, chunk_ids)
     ):
         # Use document-based ID for easier debugging and reindexing
-        # Sanitize doc_id for Pinecone (must be ASCII)
+        # Pinecone requires vector IDs to be exactly 512 characters or less
+        chunk_suffix = f"::chunk-{cid}"
+        suffix_length = len(chunk_suffix)
+        max_doc_part_length = 512 - suffix_length  # Reserve space for suffix
+        
+        # Sanitize doc_id (ASCII-safe)
         safe_doc_id = sanitize_doc_id_for_vector_id(doc_id)
-        global_id = f"{safe_doc_id}::chunk-{cid}"
+        
+        # If doc_id is too long, use hash instead (more reliable than truncation)
+        if len(safe_doc_id) > max_doc_part_length:
+            # Use hash of original doc_id (stable, deterministic)
+            doc_hash = hashlib.md5(str(doc_id).encode('utf-8')).hexdigest()
+            # Ensure hash fits within available space
+            safe_doc_id = doc_hash[:max_doc_part_length]
+        
+        global_id = f"{safe_doc_id}{chunk_suffix}"
+        
+        # Absolute safety check: enforce 512 character limit
+        # IMPORTANT: Preserve the chunk suffix integrity - only truncate the doc_id part
+        if len(global_id) > 512:
+            # Recalculate available space for doc_id part (suffix length might vary with large chunk IDs)
+            actual_suffix_length = len(chunk_suffix)
+            available_space = 512 - actual_suffix_length
+            if available_space <= 0:
+                # Edge case: suffix itself is too long (shouldn't happen with reasonable chunk IDs)
+                print(f"[ERROR] Chunk suffix too long ({actual_suffix_length} chars): {chunk_suffix}")
+                print(f"[ERROR] Skipping vector with doc_id: {doc_id[:100]}...")
+                continue
+            # Truncate only the doc_id part, preserving the full suffix
+            safe_doc_id = safe_doc_id[:available_space]
+            global_id = f"{safe_doc_id}{chunk_suffix}"
+            # Final verification
+            if len(global_id) > 512:
+                print(f"[ERROR] Vector ID still too long after truncation: {len(global_id)} chars")
+                print(f"[ERROR] Skipping vector with doc_id: {doc_id[:100]}...")
+                continue
+        
+        # Ensure text is always a non-empty string (Pinecone requirement)
+        text_value = str(txt) if txt else ""
+        if not text_value:
+            print(f"[WARN] Skipping vector with empty text: {global_id}")
+            continue
         
         metadata = {
-            "text": txt,  # Full text with title/subtitle (used for embedding)
-            "doc_id": str(doc_id) if doc_id is not None else None,
-            "filename": fn,
+            "text": text_value,  # Full text with title/subtitle (used for embedding)
             "chunk_id": int(cid),
         }
-        # Add optional metadata
-        if urls and local_idx < len(urls):
-            metadata["url"] = urls[local_idx]
-        if titles and local_idx < len(titles):
-            metadata["title"] = titles[local_idx]
-        if subtitles and local_idx < len(subtitles):
-            metadata["subtitle"] = subtitles[local_idx]
-        if chunk_text_only_list and local_idx < len(chunk_text_only_list):
-            metadata["chunk_text_only"] = chunk_text_only_list[local_idx]
-        if file_types and local_idx < len(file_types):
-            metadata["file_type"] = file_types[local_idx]
+        # Add doc_id if not None (Pinecone doesn't allow None values)
+        if doc_id is not None:
+            metadata["doc_id"] = str(doc_id)
+        # Add filename if not None/empty
+        if fn:
+            metadata["filename"] = str(fn)
+        # Add optional metadata (only if not None/empty)
+        if urls and local_idx < len(urls) and urls[local_idx]:
+            metadata["url"] = str(urls[local_idx])
+        if titles and local_idx < len(titles) and titles[local_idx]:
+            metadata["title"] = str(titles[local_idx])
+        if subtitles and local_idx < len(subtitles) and subtitles[local_idx]:
+            metadata["subtitle"] = str(subtitles[local_idx])
+        if chunk_text_only_list and local_idx < len(chunk_text_only_list) and chunk_text_only_list[local_idx]:
+            metadata["chunk_text_only"] = str(chunk_text_only_list[local_idx])
+        if file_types and local_idx < len(file_types) and file_types[local_idx]:
+            metadata["file_type"] = str(file_types[local_idx])
+        
+        # Validate metadata size (Pinecone has 40KB limit per metadata field)
+        # We'll truncate text if needed, but keep it reasonably sized
+        MAX_METADATA_VALUE_SIZE = 30000  # ~30KB to stay safely under 40KB limit
+        text_bytes = text_value.encode('utf-8')
+        if len(text_bytes) > MAX_METADATA_VALUE_SIZE:
+            # Truncate by byte length, not character count (important for multibyte UTF-8)
+            # Truncate to leave room for "..." suffix (3 bytes)
+            truncated_bytes = text_bytes[:MAX_METADATA_VALUE_SIZE - 3]
+            # Decode back to string, handling potential incomplete UTF-8 sequences at the end
+            text_value = truncated_bytes.decode('utf-8', errors='ignore') + "..."
+            metadata["text"] = text_value
         
         vector_data = {
             "id": global_id,
@@ -227,12 +295,24 @@ def upsert_index(index,
             print(f"[STEP] Upserting {len(vectors)} vectors to Pinecone{namespace_str}...")
         
         # Upsert with optional namespace
-        if namespace:
-            index.upsert(vectors=vectors, namespace=namespace)
-        else:
-            index.upsert(vectors=vectors)
-        if show_progress:
-            print(f"[OK] Successfully upserted {len(vectors)} vectors")
+        try:
+            if namespace:
+                index.upsert(vectors=vectors, namespace=namespace)
+            else:
+                index.upsert(vectors=vectors)
+            if show_progress:
+                print(f"[OK] Successfully upserted {len(vectors)} vectors")
+        except Exception as e:
+            print(f"[ERROR] Failed to upsert vectors to Pinecone")
+            print(f"[ERROR] Error type: {type(e).__name__}")
+            print(f"[ERROR] Error message: {str(e)}")
+            # Print details about first vector for debugging
+            if vectors:
+                first_vec = vectors[0]
+                print(f"[DEBUG] First vector ID: {first_vec.get('id')}")
+                print(f"[DEBUG] First vector metadata keys: {list(first_vec.get('metadata', {}).keys())}")
+                print(f"[DEBUG] First vector metadata sample: {str(first_vec.get('metadata', {}))[:200]}")
+            raise
 
 
 # --- Main indexing routine ---

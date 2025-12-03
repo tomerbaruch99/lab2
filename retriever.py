@@ -19,7 +19,7 @@ Usage as module:
     
     retriever = Retriever(
         api_keys_path="api_keys.json",
-        embedding_model_name="all-MiniLM-L6-v2",
+        embedding_model_name="intfloat/multilingual-e5-base",
         index_name="haifa-municipality-rag-index"
     )
     

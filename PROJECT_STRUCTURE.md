@@ -36,11 +36,12 @@ project/
 │   ├── __init__.py
 │   ├── config.py               # Shared configuration constants
 │   ├── pinecone_utils.py       # Pinecone helper functions
-│   └── embedding.py            # Embedding model wrapper
+│   ├── embedding.py            # Embedding model wrapper
+│   ├── compare_embedding_models.py  # Compare different embedding models
+│   ├── recreate_index.py       # Helper to recreate Pinecone index with correct dimension
+│   └── api_keys.json           # API keys (PINECONE_API_KEY, GEMINI_API_KEY)
 │
 ├── run_all_configs.py          # Helper: Run multiple chunk configurations
-├── utils/
-│   └── api_keys.json           # API keys (PINECONE_API_KEY, GEMINI_API_KEY)
 ├── requirements.txt            # Python dependencies
 └── README.md                   # Main documentation
 ```
@@ -128,7 +129,7 @@ project/
 
 All modules use consistent defaults:
 
-- **Embedding Model**: `all-MiniLM-L6-v2`
+- **Embedding Model**: `intfloat/multilingual-e5-base`
 - **Pinecone Index**: `haifa-municipality-rag-index`
 - **Gemini Model**: `gemini-2.5-flash`
 - **API Keys Path**: `utils/api_keys.json`

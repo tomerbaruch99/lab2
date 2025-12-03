@@ -19,8 +19,8 @@ PINECONE_ENV = os.getenv("PINECONE_ENVIRONMENT")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 # Embedding Model
-device = "cuda" if SentenceTransformer('intfloat/multilingual-e5-large').device == 'cuda' else "cpu"
-embed_model = SentenceTransformer("intfloat/multilingual-e5-large", device=device)
+device = "cuda" if SentenceTransformer('intfloat/multilingual-e5-base').device == 'cuda' else "cpu"
+embed_model = SentenceTransformer("intfloat/multilingual-e5-base", device=device)
 class CustomEmbedding:
     def __init__(self, model):
         self.model = model
@@ -279,8 +279,18 @@ def get_rag_response_stream(query, memory, k, system_prompt=SYSTEM_PROMPT):
         print(f"[ERROR] Agent failed: {e}")
         pass
 
-    history = memory.chat_memory.messages[-4:] if memory.chat_memory.messages else [] # TODO - check this! 
-    rewritten_query = get_rewritten_query(query, history)
+    history = memory.chat_memory.messages[-4:] if memory.chat_memory.messages else []
+    # Convert message objects to formatted string for query rewriting
+    history_str = ""
+    if history:
+        history_parts = []
+        for msg in history:
+            if isinstance(msg, HumanMessage):
+                history_parts.append(f"User: {msg.content}")
+            elif isinstance(msg, AIMessage):
+                history_parts.append(f"Assistant: {msg.content}")
+        history_str = "\n".join(history_parts)
+    rewritten_query = get_rewritten_query(query, history_str)
     namespace = classify_namespace(rewritten_query)
     docs = similarity_search(rewritten_query, namespace=namespace, k=k)
     

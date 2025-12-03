@@ -39,6 +39,7 @@ def create_index(
 ) -> None:
     """
     Create Pinecone index if it doesn't exist.
+    Checks dimension mismatch and raises error if existing index has wrong dimension.
     
     Args:
         pc: Pinecone client instance
@@ -47,6 +48,9 @@ def create_index(
         metric: Distance metric (default: "cosine")
         cloud: Cloud provider (default: "aws")
         region: AWS region (default: "us-east-1")
+        
+    Raises:
+        ValueError: If index exists but has wrong dimension
     """
     existing_indexes = [idx["name"] for idx in pc.list_indexes()]
     if index_name not in existing_indexes:
@@ -57,6 +61,21 @@ def create_index(
             metric=metric,
             spec=ServerlessSpec(cloud=cloud, region=region),
         )
+        print(f"[OK] Index '{index_name}' created successfully")
     else:
-        print(f"[INFO] Index '{index_name}' already exists.")
+        # Check if existing index has the correct dimension
+        index_stats = pc.describe_index(index_name)
+        existing_dimension = index_stats.dimension
+        
+        if existing_dimension != dimension:
+            raise ValueError(
+                f"Index '{index_name}' already exists but has dimension {existing_dimension}, "
+                f"while the embedding model requires dimension {dimension}. "
+                f"You need to either:\n"
+                f"  1. Delete the existing index and recreate it: "
+                f"     pc.delete_index('{index_name}')\n"
+                f"  2. Use a different index name\n"
+                f"  3. Use the embedding model that matches the existing dimension"
+            )
+        print(f"[INFO] Index '{index_name}' already exists (dim={dimension}, metric='{metric}')")
 
