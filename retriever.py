@@ -64,11 +64,16 @@ class Retriever:
         self,
         api_keys_path: str = DEFAULT_API_KEYS_PATH,
         embedding_model_name: str = DEFAULT_EMBEDDING_MODEL,
-        index_name: str = DEFAULT_INDEX_NAME,
+        index_name: Optional[str] = None,
     ):
         # Pinecone init
         api_key = load_pinecone_api_key(api_keys_path)
         self.pc = Pinecone(api_key=api_key)
+        
+        # Determine index name: parameter > environment variable > default
+        if index_name is None:
+            index_name = os.environ.get("PINECONE_INDEX_NAME", DEFAULT_INDEX_NAME)
+        
         self.index = self.pc.Index(index_name)
 
         # Embedding model (force CPU to avoid CUDA compatibility issues)

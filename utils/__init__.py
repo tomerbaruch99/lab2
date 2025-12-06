@@ -26,3 +26,10 @@ __all__ = [
     "EmbeddingModel",
 ]
 
+# Optional: Import query enhancement utilities if needed
+try:
+    from .query_enhancement import rephrase_query, enrich_query, rerank_chunks
+    __all__.extend(["rephrase_query", "enrich_query", "rerank_chunks"])
+except ImportError:
+    pass
+

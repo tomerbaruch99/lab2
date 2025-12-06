@@ -33,17 +33,257 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Union
+from urllib.parse import urlparse
 import pandas as pd
 from tqdm import tqdm
 
 
 # ==============================================================
-# SEMANTIC CLEANING
+# URL EXTRACTION AND VALIDATION
 # ==============================================================
 
 RE_WHITESPACE = re.compile(r"[ \t\f\v]+")
 RE_MULTI_NEWLINE = re.compile(r"\n{3,}")
+RE_URL = re.compile(
+    r'https?://(?:[-\w.])+(?:[:\d]+)?(?:/(?:[\w/_.])*(?:\?(?:[\w&=%.])*)?(?:#(?:[\w.])*)?)?',
+    re.IGNORECASE
+)
+# Pattern to match [URL: ...] format with text before it
+RE_URL_MARKER = re.compile(r'\[URL:\s*(https?://[^\]]+)\]', re.IGNORECASE)
+
+
+def is_valid_url(url: str) -> bool:
+    """Check if a string is a valid URL."""
+    if not url or not isinstance(url, str):
+        return False
+    url = url.strip()
+    if not url or len(url) < 4:  # Minimum: "http"
+        return False
+    try:
+        result = urlparse(url)
+        return all([result.scheme in ['http', 'https'], result.netloc])
+    except Exception:
+        return False
+
+
+def normalize_links(links: Union[List, str, None]) -> List[Dict[str, str]]:
+    """
+    Normalize links from various formats to a list of link dictionaries.
+    Handles empty lists, empty strings, None, or malformed data.
+    """
+    if links is None:
+        return []
+    
+    # Handle string input (could be JSON string or empty string)
+    if isinstance(links, str):
+        links = links.strip()
+        if not links or links.lower() in ['[]', 'null', 'none', '']:
+            return []
+        try:
+            # Try to parse as JSON
+            parsed = json.loads(links)
+            links = parsed
+        except (json.JSONDecodeError, ValueError):
+            # If not JSON, treat as empty
+            return []
+    
+    # Handle list input
+    if not isinstance(links, list):
+        return []
+    
+    # Normalize list items to link dictionaries
+    normalized = []
+    for item in links:
+        if isinstance(item, dict):
+            # Check if it has a 'url' key with a valid URL
+            url = item.get('url', '')
+            if is_valid_url(url):
+                normalized.append({
+                    'text': item.get('text', ''),
+                    'raw_text': item.get('raw_text', ''),
+                    'url': url
+                })
+        elif isinstance(item, str):
+            # If it's a string, check if it's a valid URL
+            if is_valid_url(item):
+                normalized.append({
+                    'text': '',
+                    'raw_text': '',
+                    'url': item
+                })
+    
+    return normalized
+
+
+def extract_urls_from_text(text: str) -> List[str]:
+    """Extract URLs from text using regex."""
+    if not text or not isinstance(text, str):
+        return []
+    urls = RE_URL.findall(text)
+    # Filter and deduplicate
+    valid_urls = []
+    seen = set()
+    for url in urls:
+        url = url.strip().rstrip('.,;:!)')
+        if is_valid_url(url) and url not in seen:
+            valid_urls.append(url)
+            seen.add(url)
+    return valid_urls
+
+
+def extract_links_from_content(content: str, title: str = "", subtitle: str = "") -> Tuple[str, List[Dict[str, str]]]:
+    """
+    Extract links from content that contains [URL: ...] markers.
+    Removes the link markers from content and returns cleaned content and extracted links.
+    
+    Args:
+        content: Raw content text with [URL: ...] markers
+        title: Optional title for context
+        subtitle: Optional subtitle for context
+    
+    Returns:
+        Tuple of (cleaned_content, links_list)
+        links_list contains dicts with 'text', 'raw_text', and 'url' keys
+    """
+    if not content or not isinstance(content, str):
+        return content, []
+    
+    links = []
+    seen_urls = set()
+    cleaned_lines = []
+    
+    # Keep track of recent lines for context
+    recent_lines = []
+    MAX_CONTEXT_LINES = 3  # Maximum number of previous lines to include in context
+    
+    # Process content line by line
+    lines_list = content.split('\n')
+    for line_idx, line in enumerate(lines_list):
+        # Check if this line contains a URL marker
+        matches = list(RE_URL_MARKER.finditer(line))
+        
+        if matches:
+            # Build context from recent lines (up to MAX_CONTEXT_LINES)
+            context_lines = recent_lines[-MAX_CONTEXT_LINES:] if recent_lines else []
+            
+            # Process each URL in this line
+            last_end = 0
+            for i, match in enumerate(matches):
+                url = match.group(1).strip()
+                
+                if not is_valid_url(url) or url in seen_urls:
+                    last_end = match.end()
+                    continue
+                
+                seen_urls.add(url)
+                
+                # Extract text from end of previous match (or start of line) to start of current match
+                # This ensures each URL gets the text immediately preceding it
+                raw_text_on_line = line[last_end:match.start()].strip()
+                last_end = match.end()
+                
+                # Combine context from previous lines with text on current line
+                raw_text_parts = context_lines + [raw_text_on_line] if raw_text_on_line else context_lines
+                raw_text = '\n'.join(raw_text_parts).strip()
+                
+                # Clean up the raw_text - normalize whitespace but preserve line breaks
+                # Normalize multiple spaces but keep newlines for context
+                raw_text_cleaned = '\n'.join([
+                    RE_WHITESPACE.sub(' ', part).strip() 
+                    for part in raw_text.split('\n')
+                    if part.strip()
+                ]).strip()
+                
+                # Create text with context (title/subtitle if available)
+                text_parts = []
+                if title:
+                    text_parts.append(title)
+                if subtitle:
+                    text_parts.append(subtitle)
+                if raw_text_cleaned:
+                    # For text field, flatten newlines to spaces for cleaner embedding
+                    text_with_context = ' '.join(raw_text_cleaned.split())
+                    text_parts.append(text_with_context)
+                
+                # If still no text, use title/subtitle or empty
+                cleaned_text = ' '.join(text_parts).strip() if text_parts else (title or subtitle or "")
+                
+                links.append({
+                    'text': cleaned_text,
+                    'raw_text': raw_text_cleaned,
+                    'url': url
+                })
+            
+            # Remove all [URL: ...] markers from this line
+            line_cleaned = RE_URL_MARKER.sub('', line).strip()
+            if line_cleaned:
+                cleaned_lines.append(line_cleaned)
+                recent_lines.append(line_cleaned)
+                # Keep recent_lines bounded
+                if len(recent_lines) > MAX_CONTEXT_LINES:
+                    recent_lines.pop(0)
+        else:
+            # No URL markers in this line, keep as-is
+            line_cleaned = line.strip()
+            if line_cleaned:
+                cleaned_lines.append(line_cleaned)
+                recent_lines.append(line_cleaned)
+                # Keep recent_lines bounded
+                if len(recent_lines) > MAX_CONTEXT_LINES:
+                    recent_lines.pop(0)
+    
+    cleaned_content = '\n'.join(cleaned_lines)
+    
+    return cleaned_content, links
+
+
+def ensure_links_valid(links: Union[List, str, None], raw_content: str, title: str = "", subtitle: str = "") -> Tuple[str, List[Dict[str, str]]]:
+    """
+    Ensure links metadata contains valid hyperlinks.
+    Extracts links from content that contains [URL: ...] markers.
+    Removes link markers from content and returns cleaned content and extracted links.
+    
+    Args:
+        links: Links from page metadata (can be list, string, or None)
+        raw_content: Raw content text to extract URLs from
+        title: Optional title for link context
+        subtitle: Optional subtitle for link context
+    
+    Returns:
+        Tuple of (cleaned_content, links_list)
+        links_list contains dicts with 'text', 'raw_text', and 'url' keys
+    """
+    # First, try to extract links from content using [URL: ...] pattern
+    if raw_content:
+        cleaned_content, extracted_links = extract_links_from_content(raw_content, title, subtitle)
+        
+        # If we found links in content, use those
+        if extracted_links:
+            return cleaned_content, extracted_links
+    
+    # Otherwise, normalize existing links from metadata
+    normalized_links = normalize_links(links)
+    
+    # If we have valid links from metadata, return original content with those links
+    if normalized_links:
+        return raw_content or "", normalized_links
+    
+    # Last resort: try to extract any URLs from content as fallback
+    if raw_content:
+        extracted_urls = extract_urls_from_text(raw_content)
+        if extracted_urls:
+            # Convert extracted URLs to link format (without context)
+            fallback_links = [{'text': '', 'raw_text': '', 'url': url} for url in extracted_urls]
+            return raw_content, fallback_links
+    
+    # Return original content with empty links list
+    return raw_content or "", []
+
+
+# ==============================================================
+# SEMANTIC CLEANING
+# ==============================================================
 
 MEANINGLESS_PHRASES = {
     "לחץ כאן", "למידע נוסף", "קראו עוד", "קרא עוד",
@@ -281,10 +521,13 @@ def process_page(
     title = (page.get("title", "") or "").strip()
     subtitle = (page.get("subtitle", "") or "").strip()
     raw_content = page.get("content", "") or ""
-    links = page.get("links", []) or []
+    raw_links = page.get("links", [])
 
-    # Clean text
-    content = clean_semantic_text(raw_content)
+    # Extract links from content (removes [URL: ...] markers) and get cleaned content
+    cleaned_raw_content, links = ensure_links_valid(raw_links, raw_content, title, subtitle)
+
+    # Clean text (semantic cleaning)
+    content = clean_semantic_text(cleaned_raw_content)
 
     # Metadata
     doc_type = classify_doc_type(url, title, content)

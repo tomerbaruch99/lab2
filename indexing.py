@@ -16,7 +16,7 @@ This script:
 
 Usage:
     python indexing.py \
-        --prepared_file ./haifa_prepared_data/haifa_rag_chunks.parquet \
+        --prepared_file ./scrape_and_prepare_data/haifa_prepared_data/haifa_rag_chunks.parquet \
         --api_keys_path api_keys.json \
         --embedding_model paraphrase-multilingual-MiniLM-L12-v2 \
         --index_name haifa-municipality-rag \

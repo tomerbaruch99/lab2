@@ -40,7 +40,7 @@ This project supports three main use cases. Choose the workflow that matches you
 | Use Case | Goal | Quick Command | Section |
 |---------|------|---------------|---------|
 | **🚀 Run Application** | Use chatbot to ask questions | `streamlit run chatbot.py` | [Running the Application](#running-the-application) |
-| **📊 Evaluate Project** | Compare strategies & analyze performance | `cd evaluation && python evaluate_chunking_strategies.py` | [Evaluating the Project](#evaluating-the-project) |
+| **📊 Evaluate Project** | Compare strategies & analyze performance | `cd evaluation && python generate_evaluation_results.py` | [Evaluating the Project](#evaluating-the-project) |
 | **💡 See Examples** | Learn how components work | `python examples/example_retriever_usage.py` | [Running Examples](#running-examples) |
 
 ### 🚀 I Want to Run the Application
@@ -59,8 +59,8 @@ This project supports three main use cases. Choose the workflow that matches you
 **Use case**: Compare chunking strategies, analyze performance, and generate evaluation reports.
 
 **Quick start:**
-1. Run evaluation: `cd evaluation && python evaluate_chunking_strategies.py`
-2. Visualize results: `jupyter notebook evaluate_chunking_strategies.ipynb`
+1. Generate results: `cd evaluation && python generate_evaluation_results.py`
+2. Analyze results: `jupyter notebook analyze_evaluation_results.ipynb` or `python analyze_results.py`
 
 **See**: [Evaluating the Project](#evaluating-the-project) section below for detailed steps.
 
@@ -122,6 +122,21 @@ python gemini_integration.py \
     --top_k 5
 ```
 
+**With advanced features:**
+```bash
+# With query enhancement (improves retrieval)
+python gemini_integration.py \
+    --question "איך משלמים ארנונה?" \
+    --top_k 5 \
+    --use_query_enhancement
+
+# With reranking (improves chunk selection)
+python gemini_integration.py \
+    --question "איך משלמים ארנונה?" \
+    --top_k 5 \
+    --use_reranking
+```
+
 This runs a single question through the RAG system and prints the answer.
 
 ### What You'll See
@@ -145,39 +160,61 @@ This runs a single question through the RAG system and prints the answer.
 Run the evaluation script to test different chunking strategies:
 
 ```bash
-cd evaluation
-python evaluate_chunking_strategies.py \
-    --queries_file evaluation_queries.json \
-    --output_dir ./evaluation_results \
+python evaluation/generate_evaluation_results.py \
+    --queries_file evaluation/evaluation_queries.json \
     --strategies baseline sentence adaptive \
     --top_k 5
 ```
 
+**With baseline comparisons:**
+```bash
+python evaluation/generate_evaluation_results.py \
+    --queries_file evaluation/evaluation_queries.json \
+    --include_baselines
+```
+
+*Note: Results are saved to `evaluation/evaluation_results/` by default.*
+
 This script:
 - Tests queries across all specified strategies
+- Optionally includes baseline methods (TF-IDF, keyword matching, retrieval-only) for comparison
 - Saves results to CSV files (no visualizations)
-- Takes a few minutes depending on number of queries
+- Takes a few minutes depending on number of queries and baselines included
 
-**Output**: CSV files in `evaluation_results/`:
+**Note:** Baseline methods help contextualize system performance by comparing against:
+- Traditional keyword-based search (TF-IDF)
+- Simple exact matching approaches
+- Retrieval without generation (to show LLM contribution)
+
+**Output**: CSV files in `evaluation/evaluation_results/`:
 - `evaluation_results.csv` - Raw results per query-strategy
 - `strategy_statistics.csv` - Aggregate statistics per strategy
 - `namespace_statistics.csv` - Namespace detection accuracy
 
-### Step 2: Visualize and Analyze
+### Step 2: Analyze Results (No API Access Required)
 
-Open the Jupyter notebook to visualize results:
+After generating results, analyze them using either method:
 
+**Option A: Command-Line Analysis**
 ```bash
-jupyter notebook evaluate_chunking_strategies.ipynb
+python evaluation/analyze_results.py \
+    --results_dir evaluation/evaluation_results
 ```
 
-The notebook will:
-- Load the CSV files from Step 1
-- Generate visualizations (strategy comparison, heatmaps, category analysis)
-- Display all plots inline for interactive analysis
-- Provide summary statistics and recommendations
+**Option B: Jupyter Notebook**
+```bash
+jupyter notebook evaluation/analyze_evaluation_results.ipynb
+```
 
-**Output**: Visualization plots saved to `evaluation_results/`:
+Both analysis methods:
+- ✅ Load CSV files from Step 1
+- ✅ Generate visualizations (strategy comparison, heatmaps, category analysis)
+- ✅ Provide summary statistics and recommendations
+- ❌ Do NOT query Pinecone or Gemini
+- ❌ Do NOT require API keys
+- ✅ Can run offline
+
+**Output**: Visualization plots saved to `evaluation/evaluation_results/`:
 - `strategy_comparison.png` - Bar charts comparing strategies
 - `namespace_accuracy_heatmap.png` - Namespace detection accuracy
 - `category_analysis.png` - Performance by query category
@@ -186,23 +223,22 @@ The notebook will:
 
 **Use custom queries:**
 ```bash
-python evaluate_chunking_strategies.py \
+python evaluation/generate_evaluation_results.py \
     --queries_file my_custom_queries.json \
-    --output_dir ./my_results
+    --output_dir ./custom_results
 ```
 
 **Test specific strategies:**
 ```bash
-python evaluate_chunking_strategies.py \
+python evaluation/generate_evaluation_results.py \
     --strategies adaptive \
     --output_dir ./adaptive_only
 ```
 
 **Adjust retrieval parameters:**
 ```bash
-python evaluate_chunking_strategies.py \
-    --top_k 10 \
-    --output_dir ./evaluation_results
+python evaluation/generate_evaluation_results.py \
+    --top_k 10
 ```
 
 For detailed evaluation documentation, see `evaluation/README.md`.
@@ -311,6 +347,7 @@ Before using any of the workflows above, complete the initial setup:
 ```
 project/
 ├── scrape_and_prepare_data/
+│   ├── haifa_prepared_data/   # Output directory (created by data_preparation.py)
 │   ├── data_preparation.py    # Prepares scraped data for RAG indexing
 │   ├── haifa_scraped_with_hiperlinks.json    # Scraped data from Haifa municipality website (download from SharePoint - see Prerequisites)
 │   └── haifa_muni_scraper.ipynb
@@ -318,9 +355,12 @@ project/
 ├── retriever.py             # Retrieves relevant chunks from Pinecone
 ├── prompt_builder.py        # Builds prompts for LLM (includes EVAL style)
 ├── gemini_integration.py    # Complete RAG system with Gemini
-├── chatbot.py               # Streamlit web UI integrated with RAG and Smart Page Finder
+├── confidence_meter.py      # Answer confidence scoring tool
+├── chatbot.py               # Streamlit web UI integrated with RAG, Smart Page Finder, and Confidence Meter
 ├── evaluation/              # Evaluation scripts and reports
-│   ├── evaluate_chunking_strategies.py  # Compares chunking strategies
+│   ├── generate_evaluation_results.py     # Generates evaluation results (queries APIs)
+│   ├── analyze_evaluation_results.ipynb   # Analyzes results (reads CSV files only)
+│   ├── llm_judge.py        # LLM-as-a-judge for answer evaluation
 │   ├── evaluation_queries.json          # Evaluation query set
 │   └── README.md                        # Evaluation guide
 ├── examples/                # Example scripts and tests
@@ -335,11 +375,11 @@ project/
 │   ├── config.py            # Shared configuration constants
 │   ├── pinecone_utils.py    # Pinecone helper functions
 │   ├── embedding.py         # Embedding model wrapper
+│   ├── query_enhancement.py # Query rephrasing, enrichment, and reranking
 │   ├── smart_page_finder.py # Tool to return relevant pages to users
 │   ├── build_page_index.py  # Builds page index for Smart Page Finder
 │   └── api_keys.json        # API keys (PINECONE_API_KEY, GEMINI_API_KEY)
 ├── run_all_configs.py       # Helper script for multiple configurations
-├── haifa_prepared_data/      # Output directory (created by data_preparation.py)
 ├── requirements.txt         # Python dependencies
 └── README.md                # This file
 ```
@@ -362,7 +402,7 @@ The input JSON file (`haifa_scraped_with_hiperlinks.json`) should contain an arr
 cd scrape_and_prepare_data
 python data_preparation.py \
     --input_json haifa_scraped_with_hiperlinks.json \
-    --out_dir ../haifa_prepared_data \
+    --out_dir ./haifa_prepared_data \
     --chunk_chars 1000 \
     --chunk_overlap 200
 ```
@@ -683,6 +723,8 @@ python gemini_integration.py \
 - **Rate limiting**: Handles API rate limits with exponential backoff
 - **Error handling**: Robust error handling and retries
 - **Chunking strategy filtering**: Filter by chunking strategy (baseline, sentence, adaptive)
+- **Query enhancement** (optional): Enriches queries with additional keywords for better retrieval
+- **Reranking** (optional): Uses LLM to rerank retrieved chunks by relevance
 - **Conversation support**: Multi-turn conversations with history
 - **Smart Page Finder integration**: Automatically suggests relevant pages
 
@@ -694,9 +736,104 @@ The integration uses `google.generativeai` and follows Gemini's expected format:
 - Proper response text extraction
 - Rate limit handling with exponential backoff
 
+## Answer Confidence Meter
+
+The project includes an **Answer Confidence Meter** tool that evaluates the quality and reliability of RAG-generated answers. This tool provides visual feedback to help users understand how confident the system is in its responses.
+
+### What It Does
+
+After generating an answer, the system calculates a confidence score based on three factors:
+
+1. **Average similarity between query and retrieved chunks** (50% weight)
+   - Uses the retrieval similarity scores from Pinecone
+   - Higher scores indicate better query-chunk matching
+
+2. **Retrieval overlap score** (30% weight)
+   - Measures how much the retrieved chunks agree with each other
+   - Uses semantic similarity between chunk pairs
+   - Higher overlap indicates consistent information across chunks
+
+3. **Supported claim ratio** (20% weight)
+   - Detects potential hallucinations by checking if answer claims are supported by retrieved chunks
+   - Uses semantic similarity to verify answer sentences against chunk content
+   - Higher ratio means fewer unsupported claims
+
+### Confidence Score Calculation
+
+```python
+confidence_score = (
+    0.5 * avg_chunk_similarity +
+    0.3 * retrieval_overlap_score +
+    0.2 * supported_claim_ratio
+) * 100
+```
+
+### Confidence Levels
+
+- **High** (≥70%): Green indicator 🟢
+  - High similarity between query and chunks
+  - Chunks strongly agree with each other
+  - No unsupported claims detected
+
+- **Medium** (40-69%): Yellow indicator 🟡
+  - Moderate similarity or some disagreement
+  - Most claims appear supported
+
+- **Low** (<40%): Red indicator 🔴
+  - Low similarity or significant disagreement
+  - Some claims may not be fully supported
+
+### Usage
+
+The confidence meter is automatically integrated into the chatbot UI and appears below each answer. It can also be accessed programmatically:
+
+```python
+from gemini_integration import GeminiRAG
+from confidence_meter import calculate_confidence
+
+rag = GeminiRAG(api_keys_path="utils/api_keys.json")
+result = rag.answer_question("איך משלמים ארנונה?", top_k=5)
+
+# Confidence information is included in the result
+confidence = result.get("confidence", {})
+print(f"Confidence: {confidence['confidence_score']}% ({confidence['confidence_level']})")
+print(f"Reason: {confidence['reason']}")
+```
+
+### Output Format
+
+The confidence meter returns a dictionary with:
+
+```python
+{
+    "confidence_score": 82.5,  # Overall score (0-100)
+    "confidence_level": "High",  # "High", "Medium", or "Low"
+    "avg_chunk_similarity": 85.2,  # Query-chunk similarity (0-100)
+    "retrieval_overlap": 78.3,  # Chunk agreement (0-100)
+    "supported_claim_ratio": 90.1,  # Supported claims (0-100)
+    "reason": "High similarity between user query and retrieved chunks; retrieved chunks strongly agree with each other; no unsupported claims detected.",
+    "unsupported_claims": []  # List of potentially unsupported claims
+}
+```
+
+### Visual Display
+
+In the chatbot UI, the confidence meter displays:
+- Color-coded indicator (🟢/🟡/🔴) based on confidence level
+- Progress bar showing confidence percentage
+- Human-readable explanation of the confidence level
+- RTL-compatible styling for Hebrew interface
+
+### Why It's Valuable
+
+- **Evaluates RAG pipeline**: Helps identify when retrieval or generation quality is poor
+- **Builds user trust**: Users can see when answers are highly confident vs. uncertain
+- **Great for presentations**: Visual green/yellow/red meter is impressive and easy to understand
+- **Debugging tool**: Low confidence scores can indicate issues with retrieval or chunk quality
+
 ## Web Chatbot
 
-The project includes a fully functional Streamlit chatbot (`chatbot.py`) that integrates the RAG system with Smart Page Finder.
+The project includes a fully functional Streamlit chatbot (`chatbot.py`) that integrates the RAG system with Smart Page Finder and the Answer Confidence Meter.
 
 ### Running the Chatbot
 
@@ -706,6 +843,7 @@ streamlit run chatbot.py
 
 The chatbot provides:
 - **RAG-powered answers**: Uses Gemini RAG to answer questions based on retrieved chunks
+- **Answer Confidence Meter**: Visual confidence indicator for each answer (🟢/🟡/🔴)
 - **Smart Page Finder**: Automatically suggests relevant official pages from the Haifa municipality website
 - **Hebrew (RTL) support**: Full right-to-left text support with Gisha font
 - **Chat history**: Maintains conversation history during the session
@@ -714,6 +852,8 @@ The chatbot provides:
 ### Features
 
 - Real-time question answering using the RAG system
+- Automatic confidence scoring for every answer
+- Visual confidence meter with color-coded indicators
 - Automatic page recommendations based on query similarity
 - Clean, user-friendly Hebrew interface
 - Session-based chat history
@@ -746,20 +886,40 @@ This creates `scrape_and_prepare_data/page_index.csv` with page embeddings.
 
 ### Evaluation System
 
-The project includes a comprehensive evaluation system for comparing chunking strategies.
+The project includes a comprehensive evaluation system for comparing chunking strategies and baseline methods.
 
 **Strategies compared:**
 - **baseline**: Simple character-based chunking
 - **sentence**: Sentence-aware chunking
 - **adaptive**: Dynamic strategy selection based on document type
 
+**Baseline methods** (for comparison and benchmarking):
+- **TF-IDF Baseline**: Traditional keyword-based retrieval using TF-IDF vectorization
+- **Keyword Matching Baseline**: Simple exact keyword matching (Jaccard similarity)
+- **Retrieval-Only Baseline**: Semantic search without LLM generation
+
 **Metrics:**
-- Retrieval quality (average similarity scores)
+- Retrieval quality (average similarity scores with statistical analysis)
+- **Score distribution**: Explicit proportions of queries in each performance category
+- **Baseline comparison**: Quantitative improvement metrics (mean, median, proportion better)
+- **Statistical significance**: Paired t-tests comparing strategies vs baselines (p-values)
 - Namespace detection accuracy
 - Document diversity
 - Performance by query category
 
+**Quantitative Analysis:**
+The evaluation provides comprehensive quantitative analysis including:
+- Score distributions showing what **proportion of queries** achieve each performance level
+- Improvement percentages over baselines with statistical significance tests
+- Explicit quantitative context to determine if scores are genuinely strong vs. merely adequate
+
 **Usage:** See [Evaluating the Project](#evaluating-the-project) section above.
+
+**Include baselines in evaluation:**
+```bash
+python evaluation/generate_evaluation_results.py \
+    --include_baselines
+```
 
 **Detailed documentation:** See `evaluation/README.md`
 

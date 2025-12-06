@@ -25,6 +25,13 @@ project/
 ├── retriever.py                 # Retrieves relevant chunks from Pinecone
 ├── prompt_builder.py            # Builds prompts for LLM
 ├── gemini_integration.py        # Complete RAG system with Gemini
+├── confidence_meter.py          # Answer confidence scoring tool
+├── chatbot.py                   # Streamlit web UI
+├── evaluation/                  # Evaluation scripts and utilities
+│   ├── generate_evaluation_results.py     # Generates evaluation results (queries APIs)
+│   ├── analyze_evaluation_results.ipynb   # Analyzes results (reads CSV files only)
+│   ├── llm_judge.py            # LLM-as-a-judge for answer evaluation
+│   └── evaluation_queries.json # Evaluation query set
 │
 ├── examples/                    # Example scripts and tests
 │   ├── example_retriever_usage.py   # Examples for retriever
@@ -37,6 +44,8 @@ project/
 │   ├── config.py               # Shared configuration constants
 │   ├── pinecone_utils.py       # Pinecone helper functions
 │   ├── embedding.py            # Embedding model wrapper
+│   ├── query_enhancement.py    # Query rephrasing, enrichment, and reranking
+│   ├── smart_page_finder.py   # Tool to return relevant pages to users
 │   ├── compare_embedding_models.py  # Compare different embedding models
 │   ├── recreate_index.py       # Helper to recreate Pinecone index with correct dimension
 │   └── api_keys.json           # API keys (PINECONE_API_KEY, GEMINI_API_KEY)
@@ -118,12 +127,36 @@ project/
 
 ### 5. Gemini Integration (`gemini_integration.py`)
 - **Input**: Question
-- **Output**: Generated answer
+- **Output**: Generated answer with confidence score
 - **Features**:
   - Complete RAG pipeline
   - Rate limiting with retries
-  - File type filtering
+  - Query enhancement (optional): Enriches queries with keywords
+  - Reranking (optional): Uses LLM to rerank chunks by relevance
+  - Chunking strategy filtering
   - Conversation support
+  - Automatic confidence scoring
+
+### 6. Answer Confidence Meter (`confidence_meter.py`)
+- **Input**: Retrieved chunks and generated answer
+- **Output**: Confidence score and detailed metrics
+- **Features**:
+  - Calculates average query-chunk similarity (50% weight)
+  - Measures retrieval overlap between chunks (30% weight)
+  - Detects unsupported claims/hallucinations (20% weight)
+  - Returns confidence level (High/Medium/Low) with explanation
+  - Visual display in chatbot UI (color-coded meter)
+
+### 7. Query Enhancement (`utils/query_enhancement.py`)
+- **Features**:
+  - Query rephrasing: Improves question clarity
+  - Query enrichment: Adds relevant keywords for better retrieval
+  - Chunk reranking: Uses LLM to select most relevant chunks
+
+### 8. LLM Judge (`evaluation/llm_judge.py`)
+- **Features**:
+  - Evaluates RAG answers against gold standards
+  - Multiple quality metrics: correctness, faithfulness, completeness, conciseness, overall
 
 ## Default Values
 

@@ -1,291 +1,264 @@
 """
-Haifa Municipality RAG Chatbot with Hebrew (RTL) Support
-Integrates Gemini RAG system and Smart Page Finder
+Haifa Municipality RAG Chatbot
 """
 
 import warnings
 import sys
 from pathlib import Path
-
-# Python 3.9 compatibility: Add packages_distributions to importlib.metadata if missing
-try:
-    import importlib.metadata
-    if not hasattr(importlib.metadata, 'packages_distributions'):
-        # Python 3.9 compatibility shim
-        def _packages_distributions():
-            """Fallback for Python 3.9 compatibility."""
-            try:
-                # Try to use importlib_metadata backport if available
-                import importlib_metadata
-                return importlib_metadata.packages_distributions()
-            except (ImportError, AttributeError):
-                # Return empty dict if not available
-                return {}
-        importlib.metadata.packages_distributions = _packages_distributions
-except (ImportError, AttributeError):
-    pass
-
-# Suppress expected warnings
-warnings.filterwarnings("ignore", category=FutureWarning, module="google.api_core")
-warnings.filterwarnings("ignore", message=".*missing ScriptRunContext.*")
-warnings.filterwarnings("ignore", message=".*Session state does not function.*")
-warnings.filterwarnings("ignore", category=UserWarning, module="torch.cuda")
-warnings.filterwarnings("ignore", message=".*packages_distributions.*")
-
 import streamlit as st
 
-# Check if running with streamlit run (suppress warning if not, but continue)
-try:
-    # Try to access streamlit runtime - if it fails, we're not in streamlit context
-    from streamlit.runtime.scriptrunner import get_script_run_ctx
-    if get_script_run_ctx() is None:
-        # Running without streamlit run - warnings already suppressed above
-        pass
-except (ImportError, AttributeError):
-    # Not in streamlit context - warnings already suppressed
-    pass
-
-# Add project root to path
+# Add project root
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-# Import RAG components
 from gemini_integration import GeminiRAG
 from utils.smart_page_finder import SmartPageFinder
 
-# Page configuration
+
+
+# -----------------------------
+# PAGE CONFIG
+# -----------------------------
 st.set_page_config(
     page_title="צ'אטבוט עיריית חיפה",
-    page_icon="💬",
-    layout="wide"
+    page_icon="logos/logo1.png",
+    layout="centered"
 )
 
-# Custom CSS for RTL support and Gisha font
+
+
+# -----------------------------
+# CUSTOM CSS
+# -----------------------------
 st.markdown("""
-    <style>
-    /* Global font setting - Gisha for all text */
-    * {
-        font-family: Gisha, Arial, sans-serif !important;
-    }
-    
-    body {
-        font-family: Gisha, Arial, sans-serif !important;
-    }
-    
-    /* RTL support for Hebrew text */
-    .rtl {
-        direction: rtl;
-        text-align: right;
-        font-family: Gisha, Arial, sans-serif !important;
-    }
-    
-    /* Chat message styling */
-    .chat-message {
-        padding: 1rem;
-        border-radius: 0.5rem;
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: flex-start;
-        font-family: Gisha, Arial, sans-serif !important;
-    }
-    
-    .user-message {
-        background-color: #e3f2fd;
-        direction: rtl;
-        text-align: right;
-        font-family: Gisha, Arial, sans-serif !important;
-    }
-    
-    .assistant-message {
-        background-color: #f5f5f5;
-        direction: rtl;
-        text-align: right;
-        font-family: Gisha, Arial, sans-serif !important;
-    }
-    
-    /* Input area RTL */
-    .stTextInput > div > div > input {
-        direction: rtl;
-        text-align: right;
-        font-family: Gisha, Arial, sans-serif !important;
-    }
-    
-    /* Text area RTL */
-    .stTextArea > div > div > textarea {
-        direction: rtl;
-        text-align: right;
-        font-family: Gisha, Arial, sans-serif !important;
-    }
-    
-    /* Buttons */
-    button {
-        font-family: Gisha, Arial, sans-serif !important;
-    }
-    
-    /* All Streamlit text elements */
-    h1, h2, h3, h4, h5, h6, p, div, span, label {
-        font-family: Gisha, Arial, sans-serif !important;
-    }
-    
-    /* Form alignment for RTL - align to right */
-    form[data-testid="chat_form"] {
-        direction: rtl;
-        text-align: right;
-    }
-    
-    /* Align form container to the right */
-    form[data-testid="chat_form"] > div {
-        direction: rtl;
-        text-align: right;
-        display: flex;
-        flex-direction: row-reverse;
-        justify-content: flex-start;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    /* Column containers in form */
-    form[data-testid="chat_form"] [data-testid="column"] {
-        direction: rtl;
-        text-align: right;
-    }
-    
-    /* Align submit button to the right */
-    form[data-testid="chat_form"] button {
-        direction: rtl;
-    }
-    
-    /* Input container alignment */
-    form[data-testid="chat_form"] .stTextInput {
-        direction: rtl;
-        text-align: right;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+<style>
 
-# Initialize chat history in session state
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+html, body, [data-testid="stAppViewContainer"] {
+    direction: rtl !important;
+    text-align: right !important;
+    background-color: #f3f9f5 !important;
+    font-family: Gisha, Arial, sans-serif !important;
+}
 
-# Initialize RAG system and Smart Page Finder (only once)
-@st.cache_resource
-def init_rag_system():
-    """Initialize RAG system and Smart Page Finder (cached for performance)."""
-    try:
-        rag = GeminiRAG(api_keys_path="utils/api_keys.json")
-        page_finder = SmartPageFinder()
-        return rag, page_finder
-    except Exception as e:
-        # Suppress importlib.metadata compatibility errors (non-critical)
-        error_msg = str(e)
-        if "packages_distributions" in error_msg or "importlib.metadata" in error_msg:
-            # Try again - the compatibility shim should handle it
-            try:
-                rag = GeminiRAG(api_keys_path="utils/api_keys.json")
-                page_finder = SmartPageFinder()
-                return rag, page_finder
-            except Exception:
-                # If it still fails, return None but don't show error to user
-                # (this is a known Python 3.9 compatibility issue that doesn't affect functionality)
-                return None, None
-        else:
-            st.error(f"שגיאה באתחול המערכת: {e}")
-            return None, None
+/* ----- FIX SIDEBAR ALWAYS OPEN ----- */
+[data-testid="stSidebar"] {
+    min-width: 260px !important;
+    max-width: 260px !important;
+}
+button[kind="header"] {
+    display: none !important;
+}
 
-rag_system, page_finder = init_rag_system()
+/* ----- PAGE WIDTH ----- */
+.block-container {
+    max-width: 880px !important;
+    margin: auto !important;
+}
 
-# Title
-st.title("💬 צ'אטבוט עיריית חיפה")
+/* ----- TITLE + LOGO ROW ----- */
+.header-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    justify-content: center;
+    margin-bottom: 25px;
+}
+.header-title {
+    font-size: 36px;
+    font-weight: bold;
+    color: #195c8c;
+}
+
+/* ----- CHAT BUBBLES ----- */
+.chat-bubble {
+    padding: 1rem;
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    line-height: 1.6;
+}
+
+.user-bubble {
+    background-color: #e6f3ff;
+    border-right: 6px solid #4FA3D1;
+}
+
+.assistant-bubble {
+    background-color: #ffffff;
+    border-right: 6px solid #7CC242;
+}
+
+/* Input alignment */
+input, textarea {
+    direction: rtl !important;
+    text-align: right !important;
+}
+
+/* Buttons */
+button {
+    background-color: #195c8c !important;
+    color: white !important;
+    border-radius: 8px !important;
+}
+button:hover {
+    background-color: #4fa3d1 !important;
+}
+
+/* Links */
+a { color: #195c8c !important; font-weight: bold; }
+
+</style>
+""", unsafe_allow_html=True)
+
+
+
+# -----------------------------
+# HEADER: LOGO + TITLE SAME ROW
+# -----------------------------
 st.markdown("""
-<div class="rtl" style="font-size: 1.1em; margin-bottom: 2rem; color: #666;">
-חיפאים ומבקרים - שאלו אותי על חיפה :)<br><br> לדוגמה:<br><table><tr><td>"מה העיר חיפה מציעה למבקרים בה?"</td></tr><tr><td>"איך מזמינים פעילויות ספורט או מתקנים כמו מגרשי כדורסל או כדורגל?"</td></tr><tr><td>"איך מגישים בקשה להנחות או פטור בארנונה?"</td></tr></table>
+<div class="header-row">
+    <img src="logos/logo2.png" width="200">
+    <div class="header-title">צ'אטבוט עיריית חיפה</div>
 </div>
 """, unsafe_allow_html=True)
 
-# Display chat history
-for message in st.session_state.messages:
-    role = message["role"]
-    content = message["content"]
-    
-    if role == "user":
-        st.markdown(f'<div class="chat-message user-message"><strong>משתמש:</strong> {content}</div>', 
-                   unsafe_allow_html=True)
-    else:
-        st.markdown(f'<div class="chat-message assistant-message"><strong>עוזר:</strong> {content}</div>', 
-                   unsafe_allow_html=True)
 
-# Chat input with form for Enter key support
+
+# -----------------------------
+# INITIALIZE RAG
+# -----------------------------
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+@st.cache_resource
+def init_rag():
+    try:
+        return GeminiRAG(api_keys_path="utils/api_keys.json"), SmartPageFinder()
+    except:
+        return None, None
+
+rag, page_finder = init_rag()
+
+
+
+# -----------------------------
+# DESCRIPTION
+# -----------------------------
+st.markdown("""
+ברוכים הבאים לעוזר החכם של עיריית חיפה!  
+שאלו אותי כל שאלה על שירותים עירוניים, תשלומים, חניה, ארנונה, חינוך, אירועים ועוד.
+
+**דוגמאות:**
+- מה העיר חיפה מציעה למבקרים בה?
+- איך מזמינים מגרש כדורסל?
+- איך מגישים בקשה להנחה בארנונה?
+""")
+
+
+# -----------------------------
+# CHAT HISTORY DISPLAY
+# -----------------------------
+for msg in st.session_state.messages:
+
+    # USER
+    if msg["role"] == "user":
+        st.markdown(
+            f'<div class="chat-bubble user-bubble"><strong>משתמש:</strong><br>{msg["content"]}</div>',
+            unsafe_allow_html=True,
+        )
+
+    # ASSISTANT (Split bubble + HTML content)
+    else:
+        st.markdown(
+            f'<div class="chat-bubble assistant-bubble"><strong>עוזר:</strong></div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(msg["content"], unsafe_allow_html=True)
+
+
+# -----------------------------
+# INPUT BOX
+# -----------------------------
 with st.form("chat_form", clear_on_submit=True):
-    user_input = st.text_input("הזן הודעה:", key="user_input", value="", placeholder="כתבו את השאלה שלכם כאן...")
-    submitted = st.form_submit_button("שלח", type="primary")
-    
-    if submitted and user_input.strip():
-        # Add user message to history
+    user_input = st.text_input("הזן הודעה:", "", placeholder="כתבו את השאלה שלכם כאן...")
+    send = st.form_submit_button("שלח")
+
+    if send and user_input.strip():
+
         st.session_state.messages.append({"role": "user", "content": user_input})
-        
-        # Generate response using RAG system
-        if rag_system is None or page_finder is None:
-            response = "מצטער, המערכת לא זמינה כרגע. אנא נסה שוב מאוחר יותר."
-        else:
-            try:
-                # Get RAG answer
-                with st.spinner("מחפש מידע ומכין תשובה..."):
-                    result = rag_system.answer_question(
-                        question=user_input,
-                        top_k=5,
-                        return_chunks=False
-                    )
-                    response = result["answer"]
-                    
-                    # Get relevant pages
-                    relevant_pages = page_finder.find_relevant_pages(user_input, top_k=3)
-                    
-                    # Append page suggestions if available
-                    if relevant_pages:
-                        response += "\n\n---\n\n"
-                        response += "**למידע נוסף - דפים רלוונטיים באתר העירייה:**\n\n"
-                        for i, page in enumerate(relevant_pages, 1):
-                            title = page['title']
-                            subtitle = page.get('subtitle', '')
-                            url = page['url']
-                            
-                            if subtitle and subtitle != title:
-                                display_title = f"{title} - {subtitle}"
-                            else:
-                                display_title = title
-                            
-                            response += f"{i}. [{display_title}]({url})\n"
-            except Exception as e:
-                response = f"מצטער, אירעה שגיאה בעת יצירת התשובה: {str(e)}"
-        
-        # Add assistant response to history
-        st.session_state.messages.append({"role": "assistant", "content": response})
-        
-        # Rerun to update the display
+
+        try:
+            with st.spinner("מחפש מידע ומכין תשובה..."):
+
+                res = rag.answer_question(user_input, top_k=5)
+                answer = res["answer"]
+                confidence = res.get("confidence", {})
+                pages = page_finder.find_relevant_pages(user_input)
+
+                # append relevant page links
+                if pages:
+                    answer += "\n\n---\n\n**קישורים רלוונטיים:**\n"
+                    for i, p in enumerate(pages, 1):
+                        ttl = p["title"]
+                        sub = p.get("subtitle", "")
+                        url = p["url"]
+                        display = f"{ttl} - {sub}" if sub else ttl
+                        answer += f"{i}. [{display}]({url})\n"
+
+                # CONFIDENCE widget (HTML block)
+                if confidence:
+                    score = confidence.get("confidence_score", 0)
+                    level = confidence.get("confidence_level", "Low")
+                    reason = confidence.get("reason", "")
+
+                    if level == "High":
+                        color = "#7CC242"; emoji = "🟢"
+                    elif level == "Medium":
+                        color = "#FFA500"; emoji = "🟡"
+                    else:
+                        color = "#FF6B6B"; emoji = "🔴"
+
+                    confidence_html = f"""
+                    <div style="margin-top:15px; padding:15px; background:#f8f9fa; border-radius:8px; border-right:4px solid {color};">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="font-size:20px;">{emoji}</span>
+                            <strong style="color:{color}; font-size:18px;">
+                                רמת ביטחון: {score}% ({level})
+                            </strong>
+                        </div>
+
+                        <div style="background:#e0e0e0; border-radius:10px; height:20px; overflow:hidden; margin:10px 0;">
+                            <div style="background:{color}; height:100%; width:{score}%;"></div>
+                        </div>
+
+                        <div style="font-size:14px; color:#555;"><strong>סיבה:</strong> {reason}</div>
+                    </div>
+                    """
+
+                    answer += confidence_html
+
+        except Exception as e:
+            answer = f"שגיאה במהלך יצירת התשובה: {e}"
+
+        st.session_state.messages.append({"role": "assistant", "content": answer})
         st.rerun()
 
-# Clear chat button
-if st.button("נקה היסטוריה"):
+
+
+# -----------------------------
+# SIDEBAR
+# -----------------------------
+st.sidebar.markdown("### היסטוריית צ'אט")
+st.sidebar.write(f"מספר הודעות: {len(st.session_state.messages)}")
+
+if st.sidebar.button("נקה היסטוריה"):
     st.session_state.messages = []
     st.rerun()
 
-# Display chat history count
-st.sidebar.markdown("### היסטוריית צ'אט")
-st.sidebar.markdown(f'<div class="rtl">מספר הודעות: {len(st.session_state.messages)}</div>', 
-                   unsafe_allow_html=True)
-
 if st.sidebar.button("ייצא היסטוריה"):
     if st.session_state.messages:
-        history_text = "\n\n".join([
-            f"{msg['role'].upper()}: {msg['content']}" 
-            for msg in st.session_state.messages
-        ])
-        st.sidebar.download_button(
-            label="הורד",
-            data=history_text,
-            file_name="chat_history.txt",
-            mime="text/plain"
+        data = "\n\n".join(
+            f"{m['role'].upper()}: {m['content']}" for m in st.session_state.messages
         )
+        st.sidebar.download_button("הורד", data, "chat_history.txt")
     else:
-        st.sidebar.info("אין היסטוריה לייצוא")
-
+        st.sidebar.info("אין היסטוריה לשמור")

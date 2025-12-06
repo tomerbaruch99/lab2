@@ -39,6 +39,8 @@ from google.api_core import exceptions as google_exceptions
 from retriever import Retriever
 from prompt_builder import PromptBuilder, PromptStyle
 from utils import DEFAULT_API_KEYS_PATH, DEFAULT_TOP_K
+from utils.query_enhancement import rephrase_query, enrich_query, rerank_chunks
+from confidence_meter import calculate_confidence
 
 
 # ----------------------------------------------------------------------
@@ -269,6 +271,8 @@ class GeminiRAG:
         strategy: Optional[str] = None,       # "baseline" / "sentence" / "adaptive"
         custom_instruction: Optional[str] = None,
         return_chunks: bool = False,
+        use_query_enhancement: bool = False,  # Enable query rephrasing/enrichment
+        use_reranking: bool = False,           # Enable LLM-based chunk reranking
     ) -> Dict[str, Any]:
         """
         Answer a question using RAG.
@@ -280,17 +284,31 @@ class GeminiRAG:
                       ("baseline", "sentence", "adaptive"). If None → all.
             custom_instruction: Extra system instruction for PromptBuilder
             return_chunks: If True, also returns chunks and prompt used
+            use_query_enhancement: If True, enrich query with additional keywords
+            use_reranking: If True, rerank chunks using LLM before generating answer
 
         Returns:
             {
                 "answer": str,
+                "confidence": Dict[str, Any],  # Confidence score and details
                 "chunks": Optional[List[Dict]],
                 "prompt": Optional[str],
+                "used_query": Optional[str],  # The actual query used (may be enhanced)
             }
         """
+        original_question = question
+        
+        # Query enhancement (optional)
+        if use_query_enhancement:
+            question = enrich_query(question, self.gemini_model)
+        
         # Decide if we should lean more into "source-heavy" retrieval (more chunks)
         asks_for_evidence = user_asks_for_evidence(question)
         effective_top_k = top_k * 2 if asks_for_evidence else top_k
+        
+        # If using reranking, retrieve more chunks initially
+        if use_reranking:
+            effective_top_k = max(effective_top_k, top_k * 2)
 
         # Retrieve
         chunks = self.retriever.retrieve(
@@ -299,6 +317,13 @@ class GeminiRAG:
             strategy=strategy,
             include_metadata=True,
         )
+        
+        # Reranking (optional)
+        if use_reranking and chunks:
+            chunks = rerank_chunks(question, chunks, top_k, self.gemini_model)
+        elif chunks:
+            # If not reranking, just take top_k
+            chunks = chunks[:top_k]
 
         if not chunks:
             answer_text = "מצטער, לא מצאתי מידע רלוונטי במאגר המידע של עיריית חיפה."
@@ -310,8 +335,19 @@ class GeminiRAG:
                     answer_text,
                     has_answer=False,
                 )
+            # No chunks, so confidence is low
+            confidence_info = {
+                "confidence_score": 0.0,
+                "confidence_level": "Low",
+                "avg_chunk_similarity": 0.0,
+                "retrieval_overlap": 0.0,
+                "supported_claim_ratio": 0.0,
+                "reason": "No relevant chunks retrieved.",
+                "unsupported_claims": [],
+            }
             return {
                 "answer": answer_text,
+                "confidence": confidence_info,
                 "chunks": [] if return_chunks else None,
                 "prompt": "" if return_chunks else None,
             }
@@ -332,16 +368,28 @@ class GeminiRAG:
             sleep_between_calls=self.sleep_between_calls,
         )
 
-        result = {"answer": answer}
+        # Calculate confidence score
+        confidence_info = calculate_confidence(
+            chunks=chunks,
+            answer=answer,
+            embedding_model=self.retriever.embed_model,
+        )
+
+        result = {
+            "answer": answer,
+            "confidence": confidence_info,
+        }
         if return_chunks:
             result["chunks"] = chunks
             result["prompt"] = prompt
+        if use_query_enhancement and question != original_question:
+            result["used_query"] = question
 
         # Logging
         if self.log_file_path:
             log_interaction(
                 self.log_file_path,
-                question,
+                original_question,
                 chunks,
                 answer,
                 has_answer=True,
@@ -426,6 +474,16 @@ def main():
         action="store_true",
         help="Print retrieved chunks",
     )
+    parser.add_argument(
+        "--use_query_enhancement",
+        action="store_true",
+        help="Enable query enrichment for better retrieval",
+    )
+    parser.add_argument(
+        "--use_reranking",
+        action="store_true",
+        help="Enable LLM-based chunk reranking",
+    )
 
     args = parser.parse_args()
 
@@ -443,6 +501,8 @@ def main():
         top_k=args.top_k,
         strategy=args.strategy,
         return_chunks=args.show_chunks or args.show_prompt,
+        use_query_enhancement=args.use_query_enhancement,
+        use_reranking=args.use_reranking,
     )
 
     print("\n" + "=" * 60)
