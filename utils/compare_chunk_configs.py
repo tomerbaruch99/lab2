@@ -102,13 +102,13 @@ def evaluate_chunk_config(
         total_relevant_available += len(relevant_texts)
         
         try:
-            # Retrieve with chunk_config filter
+            # Retrieve with strategy filter (chunk_config is now chunking_strategy)
+            # Note: filter_dict and file type filtering are no longer supported
             results = retriever.retrieve(
-                query_text,
+                query=query_text,
                 top_k=top_k,
-                filter_dict=filter_dict,
-                exclude_file_types=["pdf"],
-                prefer_txt_html=True,
+                strategy=None,  # Can filter by "baseline", "sentence", or "adaptive"
+                include_metadata=True,
             )
             
             # Check if relevant documents were retrieved

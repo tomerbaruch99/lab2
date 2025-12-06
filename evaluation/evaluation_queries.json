@@ -1,0 +1,104 @@
+[
+  {
+    "query": "איך משלמים ארנונה?",
+    "expected_namespace": "arnona",
+    "category": "payment"
+    // TODO: add gold keywords: ["ארנונה", "תשלום", "city4u", "חיוב"]
+  },
+  {
+    "query": "מה המחיר של חניה?",
+    "expected_namespace": "parking",
+    "category": "pricing"
+  },
+  {
+    "query": "איך מקבלים היתר בנייה?",
+    "expected_namespace": "engineering",
+    "category": "procedure"
+  },
+  {
+    "query": "מה יש לעשות במקרה של נזילת מים?",
+    "expected_namespace": "water",
+    "category": "procedure"
+  },
+  {
+    "query": "איך מתקנים חשבון מים?",
+    "expected_namespace": "water",
+    "category": "procedure"
+  },
+  {
+    "query": "מתי מפנים את האשפה?",
+    "expected_namespace": "sanitation",
+    "category": "schedule"
+  },
+  {
+    "query": "אילו אירועים יש השבוע?",
+    "expected_namespace": "culture",
+    "category": "event"
+  },
+  {
+    "query": "איך מתבקש סיוע מהרווחה?",
+    "expected_namespace": "welfare",
+    "category": "procedure"
+  },
+  {
+    "query": "מה לעשות במקרה של אזעקה?",
+    "expected_namespace": "emergency",
+    "category": "procedure"
+  },
+  {
+    "query": "מה התעריפים של השירותים העירוניים?",
+    "expected_namespace": "general",
+    "category": "pricing"
+  },
+  {
+    "query": "איך מגישים בקשה לארנונה מופחתת?",
+    "expected_namespace": "arnona",
+    "category": "procedure"
+  },
+  {
+    "query": "מה שעות הפתיחה של לשכת הרישוי?",
+    "expected_namespace": "general",
+    "category": "hours"
+  },
+  {
+    "query": "איך משלמים קנס חניה?",
+    "expected_namespace": "parking",
+    "category": "payment"
+  },
+  {
+    "query": "מה התהליך לקבלת סיוע מהרווחה?",
+    "expected_namespace": "welfare",
+    "category": "procedure"
+  },
+  {
+    "query": "איך מתקנים נזילת מים בדירה?",
+    "expected_namespace": "water",
+    "category": "procedure"
+  },
+  {
+    "query": "מה שעות פינוי האשפה?",
+    "expected_namespace": "sanitation",
+    "category": "schedule"
+  },
+  {
+    "query": "איפה אפשר לקבל מידע על אירועים בעיר?",
+    "expected_namespace": "culture",
+    "category": "information"
+  },
+  {
+    "query": "מה התהליך לקבלת היתר בניה?",
+    "expected_namespace": "engineering",
+    "category": "procedure"
+  },
+  {
+    "query": "איך מגישים בקשה לסיוע כלכלי?",
+    "expected_namespace": "welfare",
+    "category": "procedure"
+  },
+  {
+    "query": "מה לעשות במצב חירום?",
+    "expected_namespace": "emergency",
+    "category": "procedure"
+  }
+]
+

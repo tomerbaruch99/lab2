@@ -42,60 +42,66 @@ def diagnose_retrieval_issues():
     print(f"HTML/TXT results: {html_count}")
     print(f"Other: {len(all_results) - pdf_count - html_count}")
     
-    # Show PDF issues
-    print("\nPDF Issues:")
-    pdf_results = [r for r in all_results if r.get("file_type") == "pdf"]
-    generic_title_count = sum(1 for r in pdf_results if r.get("title", "").lower() == "pdf document")
-    print(f"  - PDFs with generic 'PDF Document' title: {generic_title_count}/{len(pdf_results)}")
-    if pdf_results:
-        avg_pdf_score = sum(r["score"] for r in pdf_results) / len(pdf_results)
-        print(f"  - Average PDF score: {avg_pdf_score:.4f}")
+    # Show strategy distribution
+    print("\nChunking Strategy Distribution:")
+    strategy_counts = {}
+    for r in all_results:
+        strategy = r.get("chunking_strategy", "unknown")
+        strategy_counts[strategy] = strategy_counts.get(strategy, 0) + 1
+    for strategy, count in strategy_counts.items():
+        print(f"  - {strategy}: {count} results")
     
-    # Show HTML/TXT results
-    print("\nHTML/TXT Results:")
-    html_results = [r for r in all_results if r.get("file_type") in ["html", "txt"]]
-    if html_results:
-        avg_html_score = sum(r["score"] for r in html_results) / len(html_results)
-        print(f"  - Average HTML/TXT score: {avg_html_score:.4f}")
-        print(f"  - Best HTML/TXT title: {html_results[0].get('title', 'N/A')}")
-    else:
-        print("  - No HTML/TXT results found!")
+    # Show namespace distribution
+    print("\nNamespace Distribution:")
+    namespace_counts = {}
+    for r in all_results:
+        ns = r.get("namespace", "unknown")
+        namespace_counts[ns] = namespace_counts.get(ns, 0) + 1
+    for ns, count in namespace_counts.items():
+        print(f"  - {ns}: {count} results")
     
-    # Test 2: Exclude PDFs
+    # Show doc_type distribution
+    print("\nDocument Type Distribution:")
+    doc_type_counts = {}
+    for r in all_results:
+        doc_type = r.get("metadata", {}).get("doc_type", "unknown") if isinstance(r.get("metadata"), dict) else "unknown"
+        doc_type_counts[doc_type] = doc_type_counts.get(doc_type, 0) + 1
+    for doc_type, count in doc_type_counts.items():
+        print(f"  - {doc_type}: {count} results")
+    
+    # Test 2: Different chunking strategies
     print("\n" + "="*60)
-    print("TEST 2: Excluding PDFs")
+    print("TEST 2: Different Chunking Strategies")
     print("="*60)
-    html_only_results = retriever.retrieve(query, top_k=5, exclude_file_types=["pdf"])
-    print(f"Found {len(html_only_results)} HTML/TXT results:\n")
+    for strategy in ["baseline", "sentence", "adaptive"]:
+        strategy_results = retriever.retrieve(query, top_k=5, strategy=strategy)
+        print(f"\nStrategy: {strategy}")
+        print(f"Found {len(strategy_results)} results")
+        if strategy_results:
+            print(f"  Best score: {strategy_results[0]['score']:.4f}")
+            print(f"  Namespace: {strategy_results[0].get('namespace', 'unknown')}")
     
-    for i, result in enumerate(html_only_results[:3], 1):
-        print(f"Result {i} (score: {result['score']:.4f}):")
-        print(f"  File type: {result.get('file_type')}")
-        print(f"  Title: {result.get('title', 'N/A')}")
-        print(f"  URL: {result.get('url', 'N/A')[:80]}...")
-        print()
-    
-    # Test 3: With file type preference
+    # Test 3: Namespace detection
+    print("\n" + "="*60)
+    print("TEST 3: Namespace Detection")
     print("="*60)
-    print("TEST 3: With file type preference (txt/html preferred)")
-    print("="*60)
-    preferred_results = retriever.retrieve(query, top_k=5, prefer_txt_html=True)
-    print(f"Found {len(preferred_results)} results:\n")
-    
-    for i, result in enumerate(preferred_results[:3], 1):
-        print(f"Result {i} (score: {result['score']:.4f}):")
-        print(f"  File type: {result.get('file_type')}")
-        print(f"  Title: {result.get('title', 'N/A')}")
-        print()
+    all_results = retriever.retrieve(query, top_k=10)
+    namespace_counts = {}
+    for result in all_results:
+        ns = result.get('namespace', 'unknown')
+        namespace_counts[ns] = namespace_counts.get(ns, 0) + 1
+    print("Namespace distribution:")
+    for ns, count in namespace_counts.items():
+        print(f"  {ns}: {count} results")
     
     # Recommendations
-    print("="*60)
+    print("\n" + "="*60)
     print("RECOMMENDATIONS")
     print("="*60)
-    print("\n1. EXCLUDE PDFs when they have generic titles:")
-    print("   Use: exclude_file_types=['pdf']")
-    print("\n2. PREFER HTML/TXT for clearer answers:")
-    print("   Use: prefer_txt_html=True")
+    print("\n1. Use strategy parameter to filter by chunking strategy:")
+    print("   Use: strategy='adaptive' or strategy='sentence'")
+    print("\n2. Namespace is automatically detected from query:")
+    print("   Queries with 'ארנונה' map to 'arnona' namespace")
     print("\n3. Embedding model information:")
     print("   Current: 'paraphrase-multilingual-MiniLM-L12-v2'")
     print("   (Optimized for Hebrew and multilingual content)")

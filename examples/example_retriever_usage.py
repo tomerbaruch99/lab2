@@ -27,22 +27,21 @@ def example_basic_retrieval():
         index_name="haifa-municipality-rag-index",
     )
     
-    # Query - exclude PDFs to get better HTML/TXT results
-    # PDFs often have generic titles and may not be as relevant
+    # Query - namespace is automatically detected from the query
     query = "איך משלמים ארנונה?"
     results = retriever.retrieve(
-        query, 
-        top_k=5,  # Get more results initially for better filtering
-        exclude_file_types=["pdf"],  # Exclude PDFs to get clearer HTML/TXT results
-        prefer_txt_html=True  # Prefer HTML/TXT over PDFs when available
+        query=query, 
+        top_k=5,
+        strategy=None,  # Can use "baseline", "sentence", or "adaptive" to filter
     )
     
     print(f"\nQuery: {query}")
-    print(f"Found {len(results)} results (PDFs excluded):\n")
+    print(f"Found {len(results)} results:\n")
     
     for i, result in enumerate(results, 1):
         print(f"Result {i} (score: {result['score']:.4f}):")
-        print(f"  File type: {result.get('file_type', 'unknown')}")
+        print(f"  Namespace: {result.get('namespace', 'unknown')}")
+        print(f"  Strategy: {result.get('chunking_strategy', 'unknown')}")
         print(f"  Title: {result.get('title', 'N/A')}")
         print(f"  URL: {result.get('url', 'N/A')}")
         content_preview = result.get('chunk_text_only', result.get('text', ''))
@@ -50,30 +49,30 @@ def example_basic_retrieval():
         print()
 
 
-def example_with_namespace():
-    """Example with namespace (e.g., dev environment)."""
+def example_with_strategy():
+    """Example with chunking strategy filter."""
     print("="*60)
-    print("EXAMPLE 2: Retrieval with Namespace")
+    print("EXAMPLE 2: Retrieval with Strategy Filter")
     print("="*60)
     
     retriever = Retriever(
         api_keys_path="utils/api_keys.json",
         index_name="haifa-municipality-rag-index",
-        namespace="dev",  # Use dev namespace
     )
     
     query = "מוקדי שירות"
-    results = retriever.retrieve(query, top_k=2)
+    # Filter by chunking strategy - only get results from "adaptive" strategy
+    results = retriever.retrieve(query=query, top_k=2, strategy="adaptive")
     
     print(f"\nQuery: {query}")
-    print(f"Namespace: dev")
+    print(f"Strategy filter: adaptive")
     print(f"Found {len(results)} results\n")
 
 
-def example_with_filter():
-    """Example with metadata filter."""
+def example_with_strategy_filter():
+    """Example with different chunking strategies."""
     print("="*60)
-    print("EXAMPLE 3: Retrieval with Filter")
+    print("EXAMPLE 3: Comparing Different Strategies")
     print("="*60)
     
     retriever = Retriever(
@@ -81,21 +80,21 @@ def example_with_filter():
         index_name="haifa-municipality-rag-index",
     )
     
-    # Filter by specific document
-    filter_dict = {"doc_id": "resident-service"}
-    
     query = "ארנונה"
-    results = retriever.retrieve(query, top_k=3, filter_dict=filter_dict)
     
-    print(f"\nQuery: {query}")
-    print(f"Filter: doc_id = 'resident-service'")
-    print(f"Found {len(results)} results\n")
+    # Try different strategies
+    for strategy in ["baseline", "sentence", "adaptive"]:
+        results = retriever.retrieve(query=query, top_k=3, strategy=strategy)
+        print(f"\nStrategy: {strategy}")
+        print(f"Found {len(results)} results")
+        if results:
+            print(f"  Best score: {results[0]['score']:.4f}")
 
 
 def example_batch_retrieval():
     """Example of batch retrieval for multiple queries."""
     print("="*60)
-    print("EXAMPLE 4: Batch Retrieval")
+    print("EXAMPLE 4: Multiple Queries")
     print("="*60)
     
     retriever = Retriever(
@@ -109,19 +108,19 @@ def example_batch_retrieval():
         "זימון תורים",
     ]
     
-    all_results = retriever.retrieve_batch(queries, top_k=2)
-    
-    for query, results in zip(queries, all_results):
+    # Note: retrieve_batch() doesn't exist, so we call retrieve() in a loop
+    for query in queries:
+        results = retriever.retrieve(query=query, top_k=2)
         print(f"\nQuery: {query}")
         print(f"Found {len(results)} results")
         for i, result in enumerate(results, 1):
             print(f"  {i}. {result.get('title', 'N/A')} (score: {result['score']:.4f})")
 
 
-def example_delete_document():
-    """Example of deleting a document for reindexing."""
+def example_namespace_detection():
+    """Example showing automatic namespace detection."""
     print("="*60)
-    print("EXAMPLE 5: Delete Document for Reindexing")
+    print("EXAMPLE 5: Automatic Namespace Detection")
     print("="*60)
     
     retriever = Retriever(
@@ -129,19 +128,30 @@ def example_delete_document():
         index_name="haifa-municipality-rag-index",
     )
     
-    # Delete all chunks for a specific document
-    doc_id = "resident-service"
-    print(f"\nDeleting all chunks for doc_id: {doc_id}")
-    retriever.delete_by_doc_id(doc_id)
-    print("Done! You can now reindex this document.")
+    # Different queries will automatically map to different namespaces
+    queries = [
+        "איך משלמים ארנונה?",  # Should map to "arnona"
+        "מה המחיר של חניה?",    # Should map to "parking"
+        "איך מקבלים היתר בנייה?",  # Should map to "engineering"
+    ]
+    
+    for query in queries:
+        results = retriever.retrieve(query=query, top_k=1)
+        if results:
+            detected_ns = results[0].get('namespace', 'unknown')
+            print(f"\nQuery: {query}")
+            print(f"Detected namespace: {detected_ns}")
+        else:
+            print(f"\nQuery: {query}")
+            print("No results found")
 
 
 if __name__ == "__main__":
     # Uncomment the examples you want to run
     
     example_basic_retrieval()
-    # example_with_namespace()
-    # example_with_filter()
+    # example_with_strategy()
+    # example_with_strategy_filter()
     # example_batch_retrieval()
-    # example_delete_document()
+    # example_namespace_detection()
 

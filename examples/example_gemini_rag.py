@@ -36,10 +36,10 @@ def example_basic_rag():
     print(f"\nAnswer:\n{result['answer']}")
 
 
-def example_exclude_pdfs():
-    """Example excluding PDFs to get HTML/TXT webpages."""
+def example_with_strategy():
+    """Example using chunking strategy filter."""
     print("\n" + "=" * 60)
-    print("EXAMPLE 2: Excluding PDFs")
+    print("EXAMPLE 2: Using Strategy Filter")
     print("=" * 60)
     
     rag = GeminiRAG(api_keys_path="../utils/api_keys.json")
@@ -48,11 +48,11 @@ def example_exclude_pdfs():
     result = rag.answer_question(
         question,
         top_k=5,
-        exclude_file_types=["pdf"],  # Only HTML/TXT webpages
+        strategy="adaptive",  # Filter by chunking strategy
     )
     
     print(f"\nQuestion: {question}")
-    print(f"\nAnswer (from HTML/TXT only):\n{result['answer']}")
+    print(f"\nAnswer (using adaptive strategy):\n{result['answer']}")
 
 
 def example_with_chunks():
@@ -135,7 +135,7 @@ if __name__ == "__main__":
     # Uncomment examples to run
     
     # example_basic_rag()
-    # example_exclude_pdfs()
+    # example_with_strategy()
     # example_with_chunks()
     # example_conversation()
     # example_custom_instruction()

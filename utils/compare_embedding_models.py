@@ -161,15 +161,13 @@ def test_model_with_index(
         )
         
         # Retrieve results
-        if exclude_pdfs:
-            results = retriever.retrieve(
-                query,
-                top_k=top_k,
-                exclude_file_types=["pdf"],
-                prefer_txt_html=True,
-            )
-        else:
-            results = retriever.retrieve(query, top_k=top_k, prefer_txt_html=True)
+        # Note: File type filtering is no longer supported, using strategy filter instead
+        results = retriever.retrieve(
+            query=query,
+            top_k=top_k,
+            strategy=None,  # Can use "baseline", "sentence", or "adaptive" if needed
+            include_metadata=True,
+        )
         
         # Analyze results
         if not results:
