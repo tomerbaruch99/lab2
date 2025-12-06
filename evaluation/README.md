@@ -5,15 +5,16 @@ This folder contains all files related to evaluating chunking strategies for the
 ## Files
 
 ### Main Notebook
-- **`evaluate_chunking_strategies.ipynb`** - Interactive Jupyter notebook for running evaluations with inline plots
-  - Run this notebook to evaluate all chunking strategies
-  - All visualizations are displayed inline for easy viewing
-  - Results are saved to `results/` folder
+- **`evaluate_chunking_strategies.ipynb`** - Interactive Jupyter notebook for visualization and analysis
+  - Loads CSV results from the Python script
+  - Generates all visualizations inline for easy viewing
+  - Provides detailed analysis and comparisons
 
 ### Scripts
-- **`evaluate_chunking_strategies.py`** - Python script version (can be run from command line)
-  - Use this for automated/batch evaluation
-  - Same functionality as the notebook but non-interactive
+- **`evaluate_chunking_strategies.py`** - Python script for running evaluation
+  - Runs evaluation across all strategies
+  - Saves results to CSV files (no visualizations)
+  - Use for automated/batch evaluation
 
 ### Data
 - **`evaluation_queries.json`** - Set of Hebrew queries for evaluation
@@ -30,24 +31,30 @@ This folder contains all files related to evaluating chunking strategies for the
 
 ## Quick Start
 
-### Using the Notebook (Recommended)
+### Step 1: Run Evaluation (Python Script)
 
-1. Open `evaluate_chunking_strategies.ipynb` in Jupyter
-2. Run all cells to execute the evaluation
-3. View inline plots and results directly in the notebook
-
-### Using the Script
+First, run the Python script to generate CSV results:
 
 ```bash
 cd evaluation
 python evaluate_chunking_strategies.py \
     --queries_file evaluation_queries.json \
-    --output_dir ./results
+    --output_dir ./evaluation_results
 ```
+
+### Step 2: Visualize Results (Jupyter Notebook)
+
+Then, open the notebook to visualize and analyze:
+
+1. Open `evaluate_chunking_strategies.ipynb` in Jupyter
+2. Run all cells to load CSV results and generate visualizations
+3. View inline plots and analysis directly in the notebook
 
 ## Output
 
-All results are saved to the `results/` folder:
+### From Python Script
+
+CSV files are saved to the output directory (default: `evaluation_results/`):
 - `evaluation_results.csv` - Raw evaluation data
 - `strategy_statistics.csv` - Aggregate statistics per strategy
 - `namespace_statistics.csv` - Namespace detection accuracy

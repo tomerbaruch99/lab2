@@ -2,16 +2,13 @@
 Chunking Strategy Evaluation Script
 ===================================
 
-This script evaluates the performance of different chunking strategies:
+This script runs the evaluation of different chunking strategies:
 - baseline
 - sentence
 - adaptive
 
-It tests queries across all strategies and generates:
-- Retrieval quality metrics
-- Strategy comparison tables
-- Visualizations
-- Detailed evaluation report
+It tests queries across all strategies and saves raw results to CSV files.
+For visualization and analysis, use the evaluate_chunking_strategies.ipynb notebook.
 
 Usage:
     python evaluate_chunking_strategies.py \
@@ -23,16 +20,19 @@ Usage:
 import argparse
 import json
 import os
+import sys
 from pathlib import Path
 from typing import List, Dict, Optional, Any
 from collections import defaultdict
+
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
-import matplotlib.pyplot as plt
-import seaborn as sns
 
-from retriever import Retriever, detect_namespace
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from retriever import Retriever
 from utils import DEFAULT_API_KEYS_PATH, DEFAULT_TOP_K
 
 
@@ -118,7 +118,6 @@ def evaluate_retrieval(
         - namespace_correct: Whether namespace detection was correct
         - doc_types: Distribution of doc_types in results
         - unique_docs: Number of unique documents
-        - chunks: The actual retrieved chunks
     """
     
     # Suppress print statements during retrieval
@@ -142,13 +141,13 @@ def evaluate_retrieval(
             "avg_score": 0.0,
             "max_score": 0.0,
             "min_score": 0.0,
+            "std_score": 0.0,
             "num_results": 0,
             "detected_namespace": "none",
             "namespace_correct": False,
             "doc_types": {},
             "namespaces": {},
             "unique_docs": 0,
-            "chunks": [],
         }
     
     scores = [chunk["score"] for chunk in chunks]
@@ -183,7 +182,6 @@ def evaluate_retrieval(
         "doc_types": dict(doc_types),
         "namespaces": dict(namespace_dist),
         "unique_docs": unique_docs,
-        "chunks": chunks,
     }
 
 
@@ -245,7 +243,7 @@ def compare_strategies(
 
 
 # ============================================================
-# Analysis and Statistics
+# Statistics Computation
 # ============================================================
 
 def compute_strategy_statistics(df: pd.DataFrame) -> pd.DataFrame:
@@ -279,206 +277,6 @@ def compute_namespace_accuracy(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ============================================================
-# Visualizations
-# ============================================================
-
-def plot_strategy_comparison(df: pd.DataFrame, output_dir: Path):
-    """Create comparison plots for strategies."""
-    
-    # Set style
-    sns.set_style("whitegrid")
-    plt.rcParams["figure.figsize"] = (12, 6)
-    plt.rcParams["font.size"] = 10
-    
-    # 1. Average Score by Strategy
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-    
-    # Average score comparison
-    ax = axes[0, 0]
-    strategy_means = df.groupby("strategy")["avg_score"].mean().sort_values(ascending=False)
-    bars = ax.bar(strategy_means.index, strategy_means.values, color=["#1f77b4", "#ff7f0e", "#2ca02c"])
-    ax.set_ylabel("Average Retrieval Score", fontsize=11)
-    ax.set_xlabel("Chunking Strategy", fontsize=11)
-    ax.set_title("Average Retrieval Score by Strategy", fontsize=12, fontweight="bold")
-    ax.grid(axis="y", alpha=0.3)
-    for i, (strategy, val) in enumerate(strategy_means.items()):
-        ax.text(i, val + 0.01, f"{val:.3f}", ha="center", va="bottom", fontsize=9)
-    
-    # Score distribution
-    ax = axes[0, 1]
-    for strategy in df["strategy"].unique():
-        scores = df[df["strategy"] == strategy]["avg_score"]
-        ax.hist(scores, alpha=0.6, label=strategy, bins=15)
-    ax.set_xlabel("Average Retrieval Score", fontsize=11)
-    ax.set_ylabel("Frequency", fontsize=11)
-    ax.set_title("Score Distribution by Strategy", fontsize=12, fontweight="bold")
-    ax.legend()
-    ax.grid(axis="y", alpha=0.3)
-    
-    # Namespace accuracy
-    ax = axes[1, 0]
-    namespace_acc = df.groupby("strategy")["namespace_correct"].mean()
-    bars = ax.bar(namespace_acc.index, namespace_acc.values, color=["#1f77b4", "#ff7f0e", "#2ca02c"])
-    ax.set_ylabel("Namespace Detection Accuracy", fontsize=11)
-    ax.set_xlabel("Chunking Strategy", fontsize=11)
-    ax.set_title("Namespace Detection Accuracy by Strategy", fontsize=12, fontweight="bold")
-    ax.set_ylim(0, 1)
-    ax.grid(axis="y", alpha=0.3)
-    for i, (strategy, val) in enumerate(namespace_acc.items()):
-        ax.text(i, val + 0.02, f"{val:.2%}", ha="center", va="bottom", fontsize=9)
-    
-    # Unique documents per query
-    ax = axes[1, 1]
-    unique_docs_means = df.groupby("strategy")["unique_docs"].mean()
-    bars = ax.bar(unique_docs_means.index, unique_docs_means.values, color=["#1f77b4", "#ff7f0e", "#2ca02c"])
-    ax.set_ylabel("Average Unique Documents", fontsize=11)
-    ax.set_xlabel("Chunking Strategy", fontsize=11)
-    ax.set_title("Document Diversity by Strategy", fontsize=12, fontweight="bold")
-    ax.grid(axis="y", alpha=0.3)
-    for i, (strategy, val) in enumerate(unique_docs_means.items()):
-        ax.text(i, val + 0.1, f"{val:.2f}", ha="center", va="bottom", fontsize=9)
-    
-    plt.tight_layout()
-    output_path = output_dir / "strategy_comparison.png"
-    plt.savefig(output_path, dpi=300, bbox_inches="tight")
-    print(f"[OK] Saved comparison plot to {output_path}")
-    plt.close()
-
-
-def plot_namespace_analysis(df: pd.DataFrame, output_dir: Path):
-    """Create namespace analysis plots."""
-    
-    sns.set_style("whitegrid")
-    
-    # Namespace accuracy heatmap
-    namespace_acc = compute_namespace_accuracy(df)
-    pivot = namespace_acc.pivot(index="expected_namespace", columns="strategy", values="accuracy")
-    
-    fig, ax = plt.subplots(figsize=(10, 8))
-    sns.heatmap(
-        pivot,
-        annot=True,
-        fmt=".2%",
-        cmap="YlOrRd",
-        cbar_kws={"label": "Accuracy"},
-        ax=ax,
-    )
-    ax.set_title("Namespace Detection Accuracy\n(Expected vs. Detected)", fontsize=13, fontweight="bold", pad=15)
-    ax.set_xlabel("Chunking Strategy", fontsize=11)
-    ax.set_ylabel("Expected Namespace", fontsize=11)
-    
-    plt.tight_layout()
-    output_path = output_dir / "namespace_accuracy_heatmap.png"
-    plt.savefig(output_path, dpi=300, bbox_inches="tight")
-    print(f"[OK] Saved namespace heatmap to {output_path}")
-    plt.close()
-
-
-def plot_category_analysis(df: pd.DataFrame, output_dir: Path):
-    """Create category-based analysis plots."""
-    
-    sns.set_style("whitegrid")
-    
-    fig, ax = plt.subplots(figsize=(12, 6))
-    
-    category_strategy = df.groupby(["category", "strategy"])["avg_score"].mean().reset_index()
-    pivot = category_strategy.pivot(index="category", columns="strategy", values="avg_score")
-    
-    pivot.plot(kind="bar", ax=ax, color=["#1f77b4", "#ff7f0e", "#2ca02c"], width=0.8)
-    ax.set_ylabel("Average Retrieval Score", fontsize=11)
-    ax.set_xlabel("Query Category", fontsize=11)
-    ax.set_title("Retrieval Performance by Query Category and Strategy", fontsize=12, fontweight="bold")
-    ax.legend(title="Strategy", title_fontsize=10)
-    ax.grid(axis="y", alpha=0.3)
-    plt.xticks(rotation=45, ha="right")
-    
-    plt.tight_layout()
-    output_path = output_dir / "category_analysis.png"
-    plt.savefig(output_path, dpi=300, bbox_inches="tight")
-    print(f"[OK] Saved category analysis to {output_path}")
-    plt.close()
-
-
-# ============================================================
-# Report Generation
-# ============================================================
-
-def generate_report(
-    df: pd.DataFrame,
-    strategy_stats: pd.DataFrame,
-    namespace_stats: pd.DataFrame,
-    output_dir: Path,
-) -> str:
-    """Generate markdown evaluation report."""
-    
-    report = []
-    report.append("# Chunking Strategy Evaluation Report\n")
-    report.append(f"Generated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-    
-    # Summary
-    report.append("## Summary\n")
-    report.append(f"- **Total Queries**: {df['query'].nunique()}\n")
-    report.append(f"- **Strategies Tested**: {', '.join(df['strategy'].unique())}\n")
-    report.append(f"- **Total Tests**: {len(df)}\n\n")
-    
-    # Strategy Statistics
-    report.append("## Strategy Comparison\n\n")
-    report.append("### Overall Performance Metrics\n\n")
-    report.append(strategy_stats.to_markdown(index=False))
-    report.append("\n\n")
-    
-    # Best Strategy
-    best_strategy = strategy_stats.loc[strategy_stats["avg_score_mean"].idxmax(), "strategy"]
-    best_avg_score = strategy_stats["avg_score_mean"].max()
-    report.append(f"**Best Performing Strategy**: `{best_strategy}` (avg score: {best_avg_score:.4f})\n\n")
-    
-    # Namespace Accuracy
-    report.append("## Namespace Detection Accuracy\n\n")
-    report.append("### Accuracy by Namespace and Strategy\n\n")
-    report.append(namespace_stats.to_markdown(index=False))
-    report.append("\n\n")
-    
-    overall_namespace_acc = df["namespace_correct"].mean()
-    report.append(f"**Overall Namespace Detection Accuracy**: {overall_namespace_acc:.2%}\n\n")
-    
-    # Detailed Results
-    report.append("## Detailed Results\n\n")
-    report.append("### Sample Query Results\n\n")
-    
-    sample_queries = df.groupby("query").first().head(5)
-    for _, row in sample_queries.iterrows():
-        report.append(f"- **Query**: {row['query']}\n")
-        report.append(f"  - Expected Namespace: `{row['expected_namespace']}`\n")
-        report.append(f"  - Category: `{row['category']}`\n\n")
-    
-    # Recommendations
-    report.append("## Recommendations\n\n")
-    
-    # Find best strategy per category
-    category_best = df.groupby(["category", "strategy"])["avg_score"].mean().reset_index()
-    category_best = category_best.loc[category_best.groupby("category")["avg_score"].idxmax()]
-    
-    report.append("### Best Strategy by Query Category\n\n")
-    for _, row in category_best.iterrows():
-        report.append(f"- **{row['category']}**: `{row['strategy']}` (avg score: {row['avg_score']:.4f})\n")
-    report.append("\n")
-    
-    report.append("## Visualizations\n\n")
-    report.append("- `strategy_comparison.png`: Overall strategy comparison\n")
-    report.append("- `namespace_accuracy_heatmap.png`: Namespace detection accuracy\n")
-    report.append("- `category_analysis.png`: Performance by query category\n\n")
-    
-    report_text = "\n".join(report)
-    
-    report_path = output_dir / "evaluation_report.md"
-    with open(report_path, "w", encoding="utf-8") as f:
-        f.write(report_text)
-    
-    print(f"[OK] Saved evaluation report to {report_path}")
-    return report_text
-
-
-# ============================================================
 # Main Evaluation Pipeline
 # ============================================================
 
@@ -489,7 +287,12 @@ def run_evaluation(
     top_k: int = 5,
     api_keys_path: str = DEFAULT_API_KEYS_PATH,
 ):
-    """Run complete evaluation pipeline."""
+    """
+    Run evaluation and save results to CSV files.
+    
+    For visualization and analysis, use evaluate_chunking_strategies.ipynb
+    which loads these CSV files.
+    """
     
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
@@ -529,16 +332,6 @@ def run_evaluation(
     namespace_stats.to_csv(namespace_csv, index=False, encoding="utf-8")
     print(f"[OK] Saved namespace statistics to {namespace_csv}")
     
-    # Generate visualizations
-    print("\n[STEP] Generating visualizations...")
-    plot_strategy_comparison(df, output_path)
-    plot_namespace_analysis(df, output_path)
-    plot_category_analysis(df, output_path)
-    
-    # Generate report
-    print("\n[STEP] Generating evaluation report...")
-    generate_report(df, strategy_stats, namespace_stats, output_path)
-    
     # Print summary
     print("\n" + "=" * 70)
     print("EVALUATION COMPLETE")
@@ -550,7 +343,9 @@ def run_evaluation(
         print(f"\n{row['strategy'].upper()}:")
         print(f"  Average Score: {row['avg_score_mean']:.4f} (±{row['avg_score_std']:.4f})")
         print(f"  Namespace Accuracy: {df[df['strategy']==row['strategy']]['namespace_correct'].mean():.2%}")
-    print("\n" + "=" * 70 + "\n")
+    print("\n" + "=" * 70)
+    print("\n[INFO] For visualizations and detailed analysis, run evaluate_chunking_strategies.ipynb")
+    print("       The notebook will load the CSV files from this directory.\n")
 
 
 # ============================================================
@@ -571,7 +366,7 @@ def load_queries(file_path: str) -> List[Dict[str, Any]]:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Evaluate chunking strategies for RAG system"
+        description="Evaluate chunking strategies for RAG system (saves CSV results only)"
     )
     parser.add_argument(
         "--queries_file",
@@ -629,4 +424,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

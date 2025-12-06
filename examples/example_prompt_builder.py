@@ -98,8 +98,11 @@ def example_conversational_chat():
     )
     chunks = retriever.retrieve("איך משלמים ארנונה?", top_k=2)
     
-    # Build chat prompt
-    prompt = builder.build_chat_prompt(history, chunks)
+    # Build prompt with conversation context
+    # Note: PromptBuilder doesn't have build_chat_prompt, so we use build_prompt
+    # and include conversation history in custom_instruction if needed
+    current_question = history[-1]["content"]
+    prompt = builder.build_prompt(current_question, chunks)
     
     print(prompt)
 

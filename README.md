@@ -55,14 +55,22 @@ This indexes the prepared chunks into Pinecone using embeddings.
 
 ### 3. Ask a question via Gemini RAG
 
+**Option A: Command Line**
 ```bash
 python gemini_integration.py \
     --question "איך משלמים ארנונה?" \
-    --top_k 5 \
-    --exclude_file_types pdf
+    --top_k 5
 ```
 
-This retrieves relevant chunks and generates an answer using Gemini.
+**Option B: Web UI (Recommended)**
+```bash
+streamlit run chatbot.py
+```
+
+This opens a web interface where you can chat with the RAG system. The chatbot:
+- Uses Gemini RAG to answer questions
+- Automatically suggests relevant pages using Smart Page Finder
+- Supports Hebrew (RTL) interface
 
 That's it! You now have a working RAG system. For more details on each step, see the sections below.
 
@@ -76,23 +84,32 @@ project/
 │   └── haifa_muni_scraper.ipynb
 ├── indexing.py               # Indexes prepared data into Pinecone
 ├── retriever.py             # Retrieves relevant chunks from Pinecone
-├── prompt_builder.py        # Builds prompts for LLM
+├── prompt_builder.py        # Builds prompts for LLM (includes EVAL style)
 ├── gemini_integration.py    # Complete RAG system with Gemini
+├── chatbot.py               # Streamlit web UI integrated with RAG and Smart Page Finder
+├── evaluation/              # Evaluation scripts and reports
+│   ├── evaluate_chunking_strategies.py  # Compares chunking strategies
+│   ├── evaluation_queries.json          # Evaluation query set
+│   └── README.md                        # Evaluation guide
 ├── examples/                # Example scripts and tests
 │   ├── example_retriever_usage.py
 │   ├── example_prompt_builder.py
 │   ├── example_gemini_rag.py
+│   ├── example_chatbot_integration.py
+│   ├── example_smart_page_finder.py
+│   ├── example_retrieval_diagnostics.py
 │   └── test_gemini_call.py
 ├── utils/                   # Shared utilities
-│   ├── config.py
-│   ├── pinecone_utils.py
-│   └── embedding.py
+│   ├── config.py            # Shared configuration constants
+│   ├── pinecone_utils.py    # Pinecone helper functions
+│   ├── embedding.py         # Embedding model wrapper
+│   ├── smart_page_finder.py # Tool to return relevant pages to users
+│   ├── build_page_index.py  # Builds page index for Smart Page Finder
+│   └── api_keys.json        # API keys (PINECONE_API_KEY, GEMINI_API_KEY)
 ├── run_all_configs.py       # Helper script for multiple configurations
 ├── haifa_prepared_data/      # Output directory (created by data_preparation.py)
-├── utils/
-│   └── api_keys.json        # API keys (PINECONE_API_KEY, GEMINI_API_KEY)
-├── requirements.txt           # Python dependencies
-└── README.md                 # This file
+├── requirements.txt         # Python dependencies
+└── README.md                # This file
 ```
 
 ## Data Preparation
@@ -433,8 +450,9 @@ python gemini_integration.py \
 - **Gemini integration**: Uses Google Gemini 2.5 Flash for generation
 - **Rate limiting**: Handles API rate limits with exponential backoff
 - **Error handling**: Robust error handling and retries
-- **File type filtering**: Exclude/include specific file types
+- **Chunking strategy filtering**: Filter by chunking strategy (baseline, sentence, adaptive)
 - **Conversation support**: Multi-turn conversations with history
+- **Smart Page Finder integration**: Automatically suggests relevant pages
 
 ### API Compatibility
 
@@ -444,9 +462,97 @@ The integration uses `google.generativeai` and follows Gemini's expected format:
 - Proper response text extraction
 - Rate limit handling with exponential backoff
 
-## Web UI Integration
+## Web Chatbot
 
-To integrate this RAG system into a web chatbot or application, you can call `GeminiRAG.answer_question()` from your web backend. Here's a simple example:
+The project includes a fully functional Streamlit chatbot (`chatbot.py`) that integrates the RAG system with Smart Page Finder.
+
+### Running the Chatbot
+
+```bash
+streamlit run chatbot.py
+```
+
+The chatbot provides:
+- **RAG-powered answers**: Uses Gemini RAG to answer questions based on retrieved chunks
+- **Smart Page Finder**: Automatically suggests relevant official pages from the Haifa municipality website
+- **Hebrew (RTL) support**: Full right-to-left text support with Gisha font
+- **Chat history**: Maintains conversation history during the session
+- **Export functionality**: Export chat history as text file
+
+### Features
+
+- Real-time question answering using the RAG system
+- Automatic page recommendations based on query similarity
+- Clean, user-friendly Hebrew interface
+- Session-based chat history
+
+## Smart Page Finder
+
+The Smart Page Finder (`utils/smart_page_finder.py`) is a tool that returns relevant pages to users based on their queries. It uses semantic similarity to find the most relevant official pages from the Haifa municipality website.
+
+### Usage
+
+```python
+from utils.smart_page_finder import SmartPageFinder
+
+finder = SmartPageFinder()
+pages = finder.find_relevant_pages("איך משלמים ארנונה?", top_k=3)
+
+for page in pages:
+    print(f"{page['title']}: {page['url']}")
+```
+
+### Building the Page Index
+
+Before using Smart Page Finder, you need to build the page index:
+
+```bash
+python utils/build_page_index.py
+```
+
+This creates `scrape_and_prepare_data/page_index.csv` with page embeddings.
+
+## Evaluation
+
+The project includes a comprehensive evaluation system for comparing chunking strategies.
+
+### Running Evaluation
+
+```bash
+cd evaluation
+python evaluate_chunking_strategies.py \
+    --queries_file evaluation_queries.json \
+    --output_dir ./evaluation_results \
+    --strategies baseline sentence adaptive
+```
+
+### Evaluation Metrics
+
+The evaluation compares three chunking strategies:
+- **baseline**: Simple character-based chunking
+- **sentence**: Sentence-aware chunking
+- **adaptive**: Dynamic strategy selection based on document type
+
+Metrics include:
+- Retrieval quality (average similarity scores)
+- Namespace detection accuracy
+- Document diversity
+- Performance by query category
+
+### Output
+
+The evaluation generates:
+- `evaluation_results.csv`: Raw evaluation data
+- `strategy_statistics.csv`: Aggregate statistics per strategy
+- `namespace_statistics.csv`: Namespace detection accuracy
+- `evaluation_report.md`: Comprehensive markdown report
+- Visualization plots (PNG files)
+
+See `evaluation/README.md` for detailed documentation.
+
+## Web UI Integration (Custom Backend)
+
+To integrate this RAG system into a custom web application, you can call `GeminiRAG.answer_question()` from your web backend. Here's a simple example:
 
 ```python
 from flask import Flask, request, jsonify

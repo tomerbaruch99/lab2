@@ -1,8 +1,19 @@
 """
-Minimal Streamlit Chatbot with Hebrew (RTL) Support and Chat History
+Haifa Municipality RAG Chatbot with Hebrew (RTL) Support
+Integrates Gemini RAG system and Smart Page Finder
 """
 
 import streamlit as st
+import sys
+from pathlib import Path
+
+# Add project root to path
+project_root = Path(__file__).parent
+sys.path.insert(0, str(project_root))
+
+# Import RAG components
+from gemini_integration import GeminiRAG
+from utils.smart_page_finder import SmartPageFinder
 
 # Page configuration
 st.set_page_config(
@@ -118,6 +129,20 @@ st.markdown("""
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+# Initialize RAG system and Smart Page Finder (only once)
+@st.cache_resource
+def init_rag_system():
+    """Initialize RAG system and Smart Page Finder (cached for performance)."""
+    try:
+        rag = GeminiRAG(api_keys_path="utils/api_keys.json")
+        page_finder = SmartPageFinder()
+        return rag, page_finder
+    except Exception as e:
+        st.error(f"שגיאה באתחול המערכת: {e}")
+        return None, None
+
+rag_system, page_finder = init_rag_system()
+
 # Title
 st.title("💬 צ'אטבוט עיריית חיפה")
 st.markdown("""
@@ -147,8 +172,40 @@ with st.form("chat_form", clear_on_submit=True):
         # Add user message to history
         st.session_state.messages.append({"role": "user", "content": user_input})
         
-        # Simple echo response (you can replace this with actual AI logic)
-        response = f"קיבלתי את ההודעה שלך: {user_input}"
+        # Generate response using RAG system
+        if rag_system is None or page_finder is None:
+            response = "מצטער, המערכת לא זמינה כרגע. אנא נסה שוב מאוחר יותר."
+        else:
+            try:
+                # Get RAG answer
+                with st.spinner("מחפש מידע ומכין תשובה..."):
+                    result = rag_system.answer_question(
+                        question=user_input,
+                        top_k=5,
+                        return_chunks=False
+                    )
+                    response = result["answer"]
+                    
+                    # Get relevant pages
+                    relevant_pages = page_finder.find_relevant_pages(user_input, top_k=3)
+                    
+                    # Append page suggestions if available
+                    if relevant_pages:
+                        response += "\n\n---\n\n"
+                        response += "**למידע נוסף - דפים רלוונטיים באתר העירייה:**\n\n"
+                        for i, page in enumerate(relevant_pages, 1):
+                            title = page['title']
+                            subtitle = page.get('subtitle', '')
+                            url = page['url']
+                            
+                            if subtitle and subtitle != title:
+                                display_title = f"{title} - {subtitle}"
+                            else:
+                                display_title = title
+                            
+                            response += f"{i}. [{display_title}]({url})\n"
+            except Exception as e:
+                response = f"מצטער, אירעה שגיאה בעת יצירת התשובה: {str(e)}"
         
         # Add assistant response to history
         st.session_state.messages.append({"role": "assistant", "content": response})
