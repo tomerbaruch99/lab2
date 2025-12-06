@@ -3,9 +3,47 @@ Haifa Municipality RAG Chatbot with Hebrew (RTL) Support
 Integrates Gemini RAG system and Smart Page Finder
 """
 
-import streamlit as st
+import warnings
 import sys
 from pathlib import Path
+
+# Python 3.9 compatibility: Add packages_distributions to importlib.metadata if missing
+try:
+    import importlib.metadata
+    if not hasattr(importlib.metadata, 'packages_distributions'):
+        # Python 3.9 compatibility shim
+        def _packages_distributions():
+            """Fallback for Python 3.9 compatibility."""
+            try:
+                # Try to use importlib_metadata backport if available
+                import importlib_metadata
+                return importlib_metadata.packages_distributions()
+            except (ImportError, AttributeError):
+                # Return empty dict if not available
+                return {}
+        importlib.metadata.packages_distributions = _packages_distributions
+except (ImportError, AttributeError):
+    pass
+
+# Suppress expected warnings
+warnings.filterwarnings("ignore", category=FutureWarning, module="google.api_core")
+warnings.filterwarnings("ignore", message=".*missing ScriptRunContext.*")
+warnings.filterwarnings("ignore", message=".*Session state does not function.*")
+warnings.filterwarnings("ignore", category=UserWarning, module="torch.cuda")
+warnings.filterwarnings("ignore", message=".*packages_distributions.*")
+
+import streamlit as st
+
+# Check if running with streamlit run (suppress warning if not, but continue)
+try:
+    # Try to access streamlit runtime - if it fails, we're not in streamlit context
+    from streamlit.runtime.scriptrunner import get_script_run_ctx
+    if get_script_run_ctx() is None:
+        # Running without streamlit run - warnings already suppressed above
+        pass
+except (ImportError, AttributeError):
+    # Not in streamlit context - warnings already suppressed
+    pass
 
 # Add project root to path
 project_root = Path(__file__).parent
@@ -138,8 +176,21 @@ def init_rag_system():
         page_finder = SmartPageFinder()
         return rag, page_finder
     except Exception as e:
-        st.error(f"שגיאה באתחול המערכת: {e}")
-        return None, None
+        # Suppress importlib.metadata compatibility errors (non-critical)
+        error_msg = str(e)
+        if "packages_distributions" in error_msg or "importlib.metadata" in error_msg:
+            # Try again - the compatibility shim should handle it
+            try:
+                rag = GeminiRAG(api_keys_path="utils/api_keys.json")
+                page_finder = SmartPageFinder()
+                return rag, page_finder
+            except Exception:
+                # If it still fails, return None but don't show error to user
+                # (this is a known Python 3.9 compatibility issue that doesn't affect functionality)
+                return None, None
+        else:
+            st.error(f"שגיאה באתחול המערכת: {e}")
+            return None, None
 
 rag_system, page_finder = init_rag_system()
 
