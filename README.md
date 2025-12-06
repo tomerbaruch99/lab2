@@ -33,46 +33,278 @@ Before you begin, ensure you have:
    pip install -r requirements.txt
    ```
 
-## Quickstart (End-to-End)
+## Usage Guide
 
-Here's a single, linear path to get the system running:
+This project supports three main use cases. Choose the workflow that matches your goal:
 
-### 1. Prepare data
+| Use Case | Goal | Quick Command | Section |
+|---------|------|---------------|---------|
+| **🚀 Run Application** | Use chatbot to ask questions | `streamlit run chatbot.py` | [Running the Application](#running-the-application) |
+| **📊 Evaluate Project** | Compare strategies & analyze performance | `cd evaluation && python evaluate_chunking_strategies.py` | [Evaluating the Project](#evaluating-the-project) |
+| **💡 See Examples** | Learn how components work | `python examples/example_retriever_usage.py` | [Running Examples](#running-examples) |
 
+### 🚀 I Want to Run the Application
+**Use case**: Use the chatbot to ask questions about Haifa municipality services.
+
+**Quick start:**
+1. Set up data (one-time): `python scrape_and_prepare_data/data_preparation.py`
+2. Index data (one-time): `python indexing.py`
+3. Run chatbot: `streamlit run chatbot.py`
+
+**See**: [Running the Application](#running-the-application) section below for detailed steps.
+
+---
+
+### 📊 I Want to Evaluate the Project
+**Use case**: Compare chunking strategies, analyze performance, and generate evaluation reports.
+
+**Quick start:**
+1. Run evaluation: `cd evaluation && python evaluate_chunking_strategies.py`
+2. Visualize results: `jupyter notebook evaluate_chunking_strategies.ipynb`
+
+**See**: [Evaluating the Project](#evaluating-the-project) section below for detailed steps.
+
+---
+
+### 💡 I Want to See Examples
+**Use case**: Learn how individual components work with small examples.
+
+**Quick start:**
 ```bash
-python scrape_and_prepare_data/data_preparation.py
+python examples/example_retriever_usage.py
+python examples/example_gemini_rag.py
 ```
 
-This processes `scrape_and_prepare_data/haifa_scraped_with_hiperlinks.json` and creates prepared chunks in `haifa_prepared_data/`.
+**See**: [Running Examples](#running-examples) section below for all available examples.
 
-### 2. Index into Pinecone
+---
+
+## Running the Application
+
+**Goal**: Use the chatbot to ask questions about Haifa municipality services.
+
+### Prerequisites
+
+Before running the application, you need to set up the data:
+
+1. **Prepare data** (one-time setup):
+   ```bash
+   python scrape_and_prepare_data/data_preparation.py
+   ```
+   This processes the scraped data and creates prepared chunks.
+
+2. **Index into Pinecone** (one-time setup):
+   ```bash
+   python indexing.py \
+       --prepared_file scrape_and_prepare_data/haifa_prepared_data/haifa_rag_chunks.parquet
+   ```
+   This indexes the prepared chunks into Pinecone using embeddings.
+
+### Running the Chatbot
+
+**Option 1: Web UI (Recommended)**
 
 ```bash
-python indexing.py
+streamlit run chatbot.py
 ```
 
-This indexes the prepared chunks into Pinecone using embeddings.
+This opens a web interface in your browser where you can:
+- Ask questions in Hebrew about municipal services
+- Get answers powered by Gemini RAG
+- See relevant page suggestions from Smart Page Finder
+- View chat history and export conversations
 
-### 3. Ask a question via Gemini RAG
+**Option 2: Command Line**
 
-**Option A: Command Line**
 ```bash
 python gemini_integration.py \
     --question "איך משלמים ארנונה?" \
     --top_k 5
 ```
 
-**Option B: Web UI (Recommended)**
+This runs a single question through the RAG system and prints the answer.
+
+### What You'll See
+
+- **Web UI**: Interactive chat interface with Hebrew (RTL) support
+- **Command Line**: Text output with the answer and optionally retrieved chunks
+
+---
+
+## Evaluating the Project
+
+**Goal**: Compare chunking strategies, analyze retrieval performance, and generate evaluation reports.
+
+### Prerequisites
+
+- Data must be indexed in Pinecone (see [Running the Application](#running-the-application))
+- Evaluation requires `utils/api_keys.json` with `PINECONE_API_KEY`
+
+### Step 1: Run Evaluation
+
+Run the evaluation script to test different chunking strategies:
+
 ```bash
-streamlit run chatbot.py
+cd evaluation
+python evaluate_chunking_strategies.py \
+    --queries_file evaluation_queries.json \
+    --output_dir ./evaluation_results \
+    --strategies baseline sentence adaptive \
+    --top_k 5
 ```
 
-This opens a web interface where you can chat with the RAG system. The chatbot:
-- Uses Gemini RAG to answer questions
-- Automatically suggests relevant pages using Smart Page Finder
-- Supports Hebrew (RTL) interface
+This script:
+- Tests queries across all specified strategies
+- Saves results to CSV files (no visualizations)
+- Takes a few minutes depending on number of queries
 
-That's it! You now have a working RAG system. For more details on each step, see the sections below.
+**Output**: CSV files in `evaluation_results/`:
+- `evaluation_results.csv` - Raw results per query-strategy
+- `strategy_statistics.csv` - Aggregate statistics per strategy
+- `namespace_statistics.csv` - Namespace detection accuracy
+
+### Step 2: Visualize and Analyze
+
+Open the Jupyter notebook to visualize results:
+
+```bash
+jupyter notebook evaluate_chunking_strategies.ipynb
+```
+
+The notebook will:
+- Load the CSV files from Step 1
+- Generate visualizations (strategy comparison, heatmaps, category analysis)
+- Display all plots inline for interactive analysis
+- Provide summary statistics and recommendations
+
+**Output**: Visualization plots saved to `evaluation_results/`:
+- `strategy_comparison.png` - Bar charts comparing strategies
+- `namespace_accuracy_heatmap.png` - Namespace detection accuracy
+- `category_analysis.png` - Performance by query category
+
+### Customizing Evaluation
+
+**Use custom queries:**
+```bash
+python evaluate_chunking_strategies.py \
+    --queries_file my_custom_queries.json \
+    --output_dir ./my_results
+```
+
+**Test specific strategies:**
+```bash
+python evaluate_chunking_strategies.py \
+    --strategies adaptive \
+    --output_dir ./adaptive_only
+```
+
+**Adjust retrieval parameters:**
+```bash
+python evaluate_chunking_strategies.py \
+    --top_k 10 \
+    --output_dir ./evaluation_results
+```
+
+For detailed evaluation documentation, see `evaluation/README.md`.
+
+---
+
+## Running Examples
+
+**Goal**: Learn how individual components work with small, focused examples.
+
+### Available Examples
+
+The `examples/` directory contains scripts demonstrating specific features:
+
+#### 1. Basic Retrieval
+```bash
+python examples/example_retriever_usage.py
+```
+Shows how to:
+- Initialize the retriever
+- Query Pinecone for relevant chunks
+- Filter by chunking strategy
+- Understand namespace detection
+
+#### 2. Prompt Building
+```bash
+python examples/example_prompt_builder.py
+```
+Demonstrates:
+- Different prompt styles (detailed, concise, conversational, structured)
+- Building prompts with retrieved chunks
+- Custom system instructions
+
+#### 3. Complete RAG Pipeline
+```bash
+python examples/example_gemini_rag.py
+```
+Shows:
+- Full RAG workflow (retrieval → prompt building → generation)
+- Using different chunking strategies
+- Conversation history support
+- Custom instructions
+
+#### 4. Smart Page Finder
+```bash
+python examples/example_smart_page_finder.py
+```
+Demonstrates:
+- Finding relevant pages based on user queries
+- Formatting page recommendations
+- Integrating with chatbot responses
+
+#### 5. Retrieval Diagnostics
+```bash
+python examples/example_retrieval_diagnostics.py
+```
+Helps diagnose:
+- Why retrieval might return poor results
+- File type distribution in results
+- Namespace detection accuracy
+- Strategy performance differences
+
+#### 6. Test Gemini API
+```bash
+python examples/test_gemini_call.py
+```
+Simple test to verify:
+- Gemini API connection works
+- API keys are configured correctly
+- Basic prompt generation
+
+### Running Examples
+
+Most examples can be run directly:
+
+```bash
+# From project root
+python examples/example_retriever_usage.py
+```
+
+Some examples may require:
+- API keys in `utils/api_keys.json`
+- Data indexed in Pinecone
+- Specific configuration
+
+Check the comments in each example file for requirements.
+
+### Example Output
+
+Examples typically print:
+- Step-by-step execution
+- Retrieved chunks with scores
+- Generated prompts
+- Final answers or recommendations
+
+Use examples to understand how to integrate components into your own code.
+
+---
+
+## Initial Setup (One-Time)
+
+Before using any of the workflows above, complete the initial setup:
 
 ## Project Structure
 
@@ -512,43 +744,24 @@ python utils/build_page_index.py
 
 This creates `scrape_and_prepare_data/page_index.csv` with page embeddings.
 
-## Evaluation
+### Evaluation System
 
 The project includes a comprehensive evaluation system for comparing chunking strategies.
 
-### Running Evaluation
-
-```bash
-cd evaluation
-python evaluate_chunking_strategies.py \
-    --queries_file evaluation_queries.json \
-    --output_dir ./evaluation_results \
-    --strategies baseline sentence adaptive
-```
-
-### Evaluation Metrics
-
-The evaluation compares three chunking strategies:
+**Strategies compared:**
 - **baseline**: Simple character-based chunking
 - **sentence**: Sentence-aware chunking
 - **adaptive**: Dynamic strategy selection based on document type
 
-Metrics include:
+**Metrics:**
 - Retrieval quality (average similarity scores)
 - Namespace detection accuracy
 - Document diversity
 - Performance by query category
 
-### Output
+**Usage:** See [Evaluating the Project](#evaluating-the-project) section above.
 
-The evaluation generates:
-- `evaluation_results.csv`: Raw evaluation data
-- `strategy_statistics.csv`: Aggregate statistics per strategy
-- `namespace_statistics.csv`: Namespace detection accuracy
-- `evaluation_report.md`: Comprehensive markdown report
-- Visualization plots (PNG files)
-
-See `evaluation/README.md` for detailed documentation.
+**Detailed documentation:** See `evaluation/README.md`
 
 ## Web UI Integration (Custom Backend)
 

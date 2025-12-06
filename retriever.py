@@ -71,8 +71,8 @@ class Retriever:
         self.pc = Pinecone(api_key=api_key)
         self.index = self.pc.Index(index_name)
 
-        # Embedding model
-        self.embed_model = EmbeddingModel(embedding_model_name)
+        # Embedding model (force CPU to avoid CUDA compatibility issues)
+        self.embed_model = EmbeddingModel(embedding_model_name, device="cpu")
 
         print(f"[INFO] Retriever ready | Index: {index_name}")
 

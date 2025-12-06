@@ -8,6 +8,41 @@ import torch
 from sentence_transformers import SentenceTransformer
 
 
+def is_cuda_compatible() -> bool:
+    """
+    Check if CUDA is available and compatible with the current PyTorch installation.
+    
+    Returns:
+        True if CUDA is available and compatible, False otherwise.
+    """
+    if not torch.cuda.is_available():
+        return False
+    
+    try:
+        # Try to get CUDA capability
+        if torch.cuda.device_count() > 0:
+            capability = torch.cuda.get_device_capability(0)
+            # PyTorch typically supports compute capability 7.0+
+            # Older GPUs (like Tesla M60 with 5.2) are not supported
+            if capability[0] < 7:
+                return False
+            # Try a simple CUDA operation to verify it works
+            try:
+                test_tensor = torch.tensor([1.0], device="cuda")
+                _ = test_tensor * 2
+                del test_tensor
+                torch.cuda.empty_cache()
+                return True
+            except (RuntimeError, Exception) as e:
+                # CUDA operation failed - GPU is not compatible
+                return False
+    except Exception:
+        # If any error occurs, CUDA is not usable
+        return False
+    
+    return False
+
+
 class EmbeddingModel:
     """
     Wrapper for SentenceTransformer embedding model.
@@ -21,11 +56,12 @@ class EmbeddingModel:
         
         Args:
             model_name: Name of the SentenceTransformer model
-            device: Device to use ("cpu" or "cuda"). If None, automatically uses CUDA if available.
+            device: Device to use ("cpu" or "cuda"). If None, automatically uses CUDA if compatible.
             verbose: Whether to print loading progress
         """
         if device is None:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
+            # Only use CUDA if it's actually compatible
+            device = "cuda" if is_cuda_compatible() else "cpu"
         
         if verbose:
             print(f"[STEP] Loading embedding model '{model_name}'...")
