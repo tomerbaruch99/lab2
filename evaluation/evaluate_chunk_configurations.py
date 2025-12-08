@@ -236,7 +236,7 @@ def main():
     parser.add_argument(
         "--api_keys_path",
         type=str,
-        default="../utils/api_keys.json",
+        default="./utils/api_keys.json",
         help="Path to API keys JSON file",
     )
     parser.add_argument(
@@ -297,7 +297,10 @@ def main():
         config_name = config["name"]
         chunk_chars = config["chunk_chars"]
         chunk_overlap = config["chunk_overlap"]
-        index_name = f"haifa-municipality-rag-{config_name}"
+        # Sanitize config_name for Pinecone: replace underscores with hyphens
+        # Pinecone only allows lowercase alphanumeric characters and hyphens
+        safe_config_name = config_name.replace("_", "-")
+        index_name = f"haifa-municipality-rag-{safe_config_name}"
         
         try:
             # Step 1: Prepare data

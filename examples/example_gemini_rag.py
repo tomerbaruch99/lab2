@@ -24,7 +24,7 @@ def example_basic_rag():
     
     # Initialize RAG system
     rag = GeminiRAG(
-        api_keys_path="../utils/api_keys.json",
+        api_keys_path="./utils/api_keys.json",
         gemini_model_name="gemini-2.5-flash",
     )
     
@@ -42,7 +42,7 @@ def example_with_strategy():
     print("EXAMPLE 2: Using Strategy Filter")
     print("=" * 60)
     
-    rag = GeminiRAG(api_keys_path="../utils/api_keys.json")
+    rag = GeminiRAG(api_keys_path="./utils/api_keys.json")
     
     question = "מה מספר הטלפון של המוקד העירוני?"
     result = rag.answer_question(
@@ -61,7 +61,7 @@ def example_with_chunks():
     print("EXAMPLE 3: With Retrieved Chunks")
     print("=" * 60)
     
-    rag = GeminiRAG(api_keys_path="../utils/api_keys.json")
+    rag = GeminiRAG(api_keys_path="./utils/api_keys.json")
     
     question = "איך מזמינים תור?"
     result = rag.answer_question(
@@ -87,7 +87,7 @@ def example_conversation():
     print("EXAMPLE 4: Conversational RAG")
     print("=" * 60)
     
-    rag = GeminiRAG(api_keys_path="../utils/api_keys.json")
+    rag = GeminiRAG(api_keys_path="./utils/api_keys.json")
     
     # First turn
     history = []
@@ -114,7 +114,7 @@ def example_custom_instruction():
     print("EXAMPLE 5: Custom Instruction")
     print("=" * 60)
     
-    rag = GeminiRAG(api_keys_path="../utils/api_keys.json")
+    rag = GeminiRAG(api_keys_path="./utils/api_keys.json")
     
     custom_instruction = """אתה עוזר AI של עיריית חיפה.
 ענה בקצרה ובבהירות.

@@ -18,7 +18,7 @@ The evaluation system supports multiple evaluation scenarios:
 
 Before starting evaluation, ensure you have:
 
-1. **Scraped Data**: `scrape_and_prepare_data/haifa_scraped_with_hiperlinks.json`
+1. **Scraped Data**: `scrape_and_prepare_data/haifa_scraped.json`
    - Download from SharePoint or use the scraper notebook
    
 2. **API Keys**: `utils/api_keys.json` with:
@@ -76,7 +76,7 @@ PHASE 2: ANALYSIS (No API Access Required)
 ```bash
 # From project root
 python scrape_and_prepare_data/data_preparation.py \
-    --input_json scrape_and_prepare_data/haifa_scraped_with_hiperlinks.json \
+    --input_json scrape_and_prepare_data/haifa_scraped.json \
     --out_dir scrape_and_prepare_data/haifa_prepared_data
 ```
 
@@ -180,7 +180,7 @@ This script automatically:
 ```bash
 # From project root
 python evaluation/evaluate_chunk_configurations.py \
-    --input_json scrape_and_prepare_data/haifa_scraped_with_hiperlinks.json \
+    --input_json scrape_and_prepare_data/haifa_scraped.json \
     --configs evaluation/chunk_configs.json \
     --output_base_dir evaluation/chunk_config_evaluations \
     --testset_file tests/embedding_testset.json \
@@ -225,7 +225,7 @@ jupyter notebook evaluation/analyze_evaluation_results.ipynb
 ```bash
 # Skip data preparation (use existing files)
 python evaluation/evaluate_chunk_configurations.py \
-    --input_json scrape_and_prepare_data/haifa_scraped_with_hiperlinks.json \
+    --input_json scrape_and_prepare_data/haifa_scraped.json \
     --configs evaluation/chunk_configs.json \
     --skip_preparation \
     --skip_indexing  # if indexes already exist
@@ -345,7 +345,7 @@ cat evaluation/evaluation_results/quantitative_analysis_report.md
 ```bash
 # 1. Test different chunk configurations
 python evaluation/evaluate_chunk_configurations.py \
-    --input_json scrape_and_prepare_data/haifa_scraped_with_hiperlinks.json \
+    --input_json scrape_and_prepare_data/haifa_scraped.json \
     --configs evaluation/chunk_configs.json \
     --testset_file tests/embedding_testset.json \
     --strategies baseline sentence adaptive
@@ -391,7 +391,7 @@ Here's a complete example evaluating chunk strategies with baselines:
 
 # Prepare data
 python scrape_and_prepare_data/data_preparation.py \
-    --input_json scrape_and_prepare_data/haifa_scraped_with_hiperlinks.json \
+    --input_json scrape_and_prepare_data/haifa_scraped.json \
     --out_dir scrape_and_prepare_data/haifa_prepared_data
 
 # Index data
@@ -539,7 +539,7 @@ python evaluation/generate_evaluation_results.py \
 ### Evaluate Chunk Configurations
 ```bash
 python evaluation/evaluate_chunk_configurations.py \
-    --input_json scrape_and_prepare_data/haifa_scraped_with_hiperlinks.json \
+    --input_json scrape_and_prepare_data/haifa_scraped.json \
     --configs evaluation/chunk_configs.json
 ```
 

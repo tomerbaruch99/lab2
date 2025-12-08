@@ -23,7 +23,7 @@ def test_gemini_basic():
     
     # Load API keys
     try:
-        api_keys = load_api_keys("../utils/api_keys.json")
+        api_keys = load_api_keys("./utils/api_keys.json")
     except FileNotFoundError:
         print("[ERROR] api_keys.json not found")
         print("[INFO] Please create utils/api_keys.json with GEMINI_API_KEY")

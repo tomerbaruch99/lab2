@@ -98,7 +98,7 @@ def example_batch_retrieval():
     print("="*60)
     
     retriever = Retriever(
-        api_keys_path="../utils/api_keys.json",
+        api_keys_path="./utils/api_keys.json",
         index_name="haifa-municipality-rag-index",
     )
     

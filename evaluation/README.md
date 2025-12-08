@@ -337,7 +337,7 @@ python generate_evaluation_results.py \
 
 Make sure you have:
 - Data indexed in Pinecone (run `indexing.py` first)
-- `../utils/api_keys.json` with `PINECONE_API_KEY`
+- `./utils/api_keys.json` with `PINECONE_API_KEY`
 - Required Python packages:
   ```bash
   pip install pandas numpy matplotlib seaborn tqdm

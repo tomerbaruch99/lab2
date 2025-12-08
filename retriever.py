@@ -12,6 +12,7 @@ Retriever supporting:
 import argparse
 from typing import List, Dict, Optional, Any
 from pinecone import Pinecone
+import os
 
 from utils import (
     DEFAULT_EMBEDDING_MODEL,

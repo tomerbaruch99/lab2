@@ -22,7 +22,7 @@ def diagnose_retrieval_issues():
     query = "איך משלמים ארנונה?"
     
     retriever = Retriever(
-        api_keys_path="../utils/api_keys.json",
+        api_keys_path="./utils/api_keys.json",
         embedding_model_name="paraphrase-multilingual-MiniLM-L12-v2",
         index_name="haifa-municipality-rag-index",
     )

@@ -1,0 +1,34 @@
+[
+    {
+        "name": "small_chunks",
+        "chunk_chars": 500,
+        "chunk_overlap": 100,
+        "description": "Small chunks for fine-grained retrieval"
+    },
+    {
+        "name": "medium_chunks",
+        "chunk_chars": 1000,
+        "chunk_overlap": 150,
+        "description": "Medium chunks (default configuration)"
+    },
+    {
+        "name": "large_chunks",
+        "chunk_chars": 2000,
+        "chunk_overlap": 400,
+        "description": "Large chunks for broader context"
+    },
+    {
+        "name": "small_overlap",
+        "chunk_chars": 1000,
+        "chunk_overlap": 50,
+        "description": "Medium chunks with minimal overlap"
+    },
+    {
+        "name": "large_overlap",
+        "chunk_chars": 1000,
+        "chunk_overlap": 300,
+        "description": "Medium chunks with high overlap"
+    }
+]
+
+

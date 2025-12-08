@@ -20,7 +20,7 @@ Usage:
         --api_keys_path api_keys.json \
         --embedding_model paraphrase-multilingual-MiniLM-L12-v2 \
         --index_name haifa-municipality-rag \
-        --batch_size 128
+        --batch_size 32
 """
 
 import os
@@ -327,7 +327,7 @@ def parse_args():
     parser.add_argument(
         "--batch_size",
         type=int,
-        default=128
+        default=32
     )
 
     return parser.parse_args()
