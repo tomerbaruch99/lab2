@@ -16,7 +16,7 @@ This script:
 
 Usage:
     python indexing.py \
-        --prepared_file ./scrape_and_prepare_data/haifa_prepared_data/haifa_rag_chunks.parquet \
+        --prepared_file scrape_and_prepare_data/haifa_prepared_data/haifa_rag_chunks.parquet \
         --api_keys_path api_keys.json \
         --embedding_model paraphrase-multilingual-MiniLM-L12-v2 \
         --index_name haifa-municipality-rag \
@@ -38,6 +38,7 @@ from utils import (
     DEFAULT_EMBEDDING_MODEL,
     DEFAULT_INDEX_NAME,
     DEFAULT_API_KEYS_PATH,
+    DEFAULT_BATCH_SIZE,
     load_pinecone_api_key,
     create_index,
     EmbeddingModel,
@@ -297,7 +298,9 @@ def index_haifa(
 # ============================================================
 
 def parse_args():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Index prepared Haifa municipality data into Pinecone"
+    )
 
     parser.add_argument(
         "--prepared_file",
@@ -327,7 +330,7 @@ def parse_args():
     parser.add_argument(
         "--batch_size",
         type=int,
-        default=32
+        default=DEFAULT_BATCH_SIZE
     )
 
     return parser.parse_args()

@@ -1,12 +1,35 @@
+# Core dependencies
 pandas>=1.5.0
 pyarrow>=10.0.0
-sentence-transformers>=2.2.0
-pinecone>=3.0.0
+numpy>=1.21.0
 tqdm>=4.64.0
+
+# Machine learning and embeddings
+sentence-transformers>=2.2.0
 torch>=2.9.0
 torchvision>=0.24.0
 transformers>=4.57.0
+
+# Vector database
+pinecone>=3.0.0
+
+# LLM integration
 google-generativeai>=0.3.0
+
+# Web interface
 streamlit>=1.28.0
+
+# Data visualization (for evaluation analysis)
+matplotlib>=3.5.0
+seaborn>=0.12.0
+
+# Statistical analysis (for evaluation)
+scipy>=1.9.0
+
+# Optional: For baseline methods in evaluation
+# Uncomment if you want to use TF-IDF baseline comparisons
+# scikit-learn>=1.0.0
+
+# Python version compatibility
 importlib_metadata>=4.0.0; python_version<"3.10"
 

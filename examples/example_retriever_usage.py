@@ -11,6 +11,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from retriever import Retriever
+from utils import DEFAULT_EMBEDDING_MODEL, DEFAULT_INDEX_NAME, DEFAULT_API_KEYS_PATH
 
 
 def example_basic_retrieval():
@@ -20,11 +21,11 @@ def example_basic_retrieval():
     print("="*60)
     
     # Initialize retriever
-    # Using the default embedding model optimized for Hebrew: paraphrase-multilingual-MiniLM-L12-v2
+    # Using the default embedding model optimized for Hebrew
     retriever = Retriever(
-        api_keys_path="utils/api_keys.json",
-        embedding_model_name="paraphrase-multilingual-MiniLM-L12-v2",
-        index_name="haifa-municipality-rag-index",
+        api_keys_path=DEFAULT_API_KEYS_PATH,
+        embedding_model_name=DEFAULT_EMBEDDING_MODEL,
+        index_name=DEFAULT_INDEX_NAME,
     )
     
     # Query - namespace is automatically detected from the query
@@ -56,8 +57,8 @@ def example_with_strategy():
     print("="*60)
     
     retriever = Retriever(
-        api_keys_path="utils/api_keys.json",
-        index_name="haifa-municipality-rag-index",
+        api_keys_path=DEFAULT_API_KEYS_PATH,
+        index_name=DEFAULT_INDEX_NAME,
     )
     
     query = "מוקדי שירות"
@@ -76,8 +77,8 @@ def example_with_strategy_filter():
     print("="*60)
     
     retriever = Retriever(
-        api_keys_path="utils/api_keys.json",
-        index_name="haifa-municipality-rag-index",
+        api_keys_path=DEFAULT_API_KEYS_PATH,
+        index_name=DEFAULT_INDEX_NAME,
     )
     
     query = "ארנונה"
@@ -98,8 +99,8 @@ def example_batch_retrieval():
     print("="*60)
     
     retriever = Retriever(
-        api_keys_path="./utils/api_keys.json",
-        index_name="haifa-municipality-rag-index",
+        api_keys_path=DEFAULT_API_KEYS_PATH,
+        index_name=DEFAULT_INDEX_NAME,
     )
     
     queries = [
@@ -124,8 +125,8 @@ def example_namespace_detection():
     print("="*60)
     
     retriever = Retriever(
-        api_keys_path="utils/api_keys.json",
-        index_name="haifa-municipality-rag-index",
+        api_keys_path=DEFAULT_API_KEYS_PATH,
+        index_name=DEFAULT_INDEX_NAME,
     )
     
     # Different queries will automatically map to different namespaces

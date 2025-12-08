@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import json
 from gemini_integration import init_gemini, call_gemini, load_api_keys
+from utils import DEFAULT_API_KEYS_PATH, DEFAULT_GEMINI_MODEL
 
 
 def test_gemini_basic():
@@ -23,7 +24,7 @@ def test_gemini_basic():
     
     # Load API keys
     try:
-        api_keys = load_api_keys("./utils/api_keys.json")
+        api_keys = load_api_keys(DEFAULT_API_KEYS_PATH)
     except FileNotFoundError:
         print("[ERROR] api_keys.json not found")
         print("[INFO] Please create utils/api_keys.json with GEMINI_API_KEY")
@@ -36,7 +37,7 @@ def test_gemini_basic():
     # Initialize Gemini
     print("\n[STEP] Initializing Gemini...")
     try:
-        model = init_gemini(api_keys, "gemini-2.5-flash")
+        model = init_gemini(api_keys, DEFAULT_GEMINI_MODEL)
         print("[OK] Gemini initialized")
     except Exception as e:
         print(f"[ERROR] Failed to initialize Gemini: {e}")

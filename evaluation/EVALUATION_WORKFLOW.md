@@ -28,8 +28,12 @@ Before starting evaluation, ensure you have:
 3. **Dependencies**: Install required packages:
    ```bash
    pip install -r requirements.txt
-   # For baseline methods (optional):
-   pip install scikit-learn scipy
+   ```
+   This installs all dependencies including scipy for statistical analysis.
+   
+   **For baseline methods** (optional, only if using `--include_baselines`):
+   ```bash
+   pip install scikit-learn>=1.0.0
    ```
 
 ---
@@ -74,7 +78,6 @@ PHASE 2: ANALYSIS (No API Access Required)
 ### Step 1: Prepare Data (if not already done)
 
 ```bash
-# From project root
 python scrape_and_prepare_data/data_preparation.py \
     --input_json scrape_and_prepare_data/haifa_scraped.json \
     --out_dir scrape_and_prepare_data/haifa_prepared_data
@@ -83,7 +86,6 @@ python scrape_and_prepare_data/data_preparation.py \
 ### Step 2: Index Data (if not already done)
 
 ```bash
-# From project root
 python indexing.py \
     --prepared_file scrape_and_prepare_data/haifa_prepared_data/haifa_rag_chunks.parquet \
     --index_name haifa-rag  # or use default
@@ -92,7 +94,6 @@ python indexing.py \
 ### Step 3: Run Evaluation
 
 ```bash
-# From project root or evaluation folder
 python evaluation/generate_evaluation_results.py \
     --strategies baseline sentence adaptive \
     --top_k 5 \
@@ -178,7 +179,6 @@ This script automatically:
 4. Generates comparison reports
 
 ```bash
-# From project root
 python evaluation/evaluate_chunk_configurations.py \
     --input_json scrape_and_prepare_data/haifa_scraped.json \
     --configs evaluation/chunk_configs.json \
@@ -193,11 +193,11 @@ python evaluation/evaluate_chunk_configurations.py \
 - Prepares data with specified chunk size/overlap
 - Indexes to the config-specific index
 - Runs evaluation using that index
-- Saves results to `chunk_config_evaluations/{config_name}/evaluation_results/`
+- Saves results to `evaluation/chunk_config_evaluations/{config_name}/evaluation_results/`
 
 **Output Structure**:
 ```
-chunk_config_evaluations/
+evaluation/chunk_config_evaluations/
 ├── small_chunks/
 │   ├── haifa_rag_chunks.parquet  (prepared data)
 │   └── evaluation_results/
@@ -215,7 +215,7 @@ chunk_config_evaluations/
 
 ```bash
 # Review the comparison CSV
-cat evaluation/chunk_config_evaluations/config_comparison.csv
+cat evaluation/evaluation/chunk_config_evaluations/config_comparison.csv
 
 # Or open the notebook and load multiple result directories
 jupyter notebook evaluation/analyze_evaluation_results.ipynb
@@ -264,7 +264,6 @@ python evaluation/generate_evaluation_results.py \
 Create `evaluation/test_top_k.sh`:
 
 ```bash
-#!/bin/bash
 for k in 3 5 10 15; do
     echo "Testing top_k=$k"
     python evaluation/generate_evaluation_results.py \
@@ -293,7 +292,8 @@ Manually compare the `strategy_statistics.csv` files from each output directory,
 ### Step 1: Ensure Baseline Dependencies
 
 ```bash
-pip install scikit-learn scipy
+# Install scikit-learn for baseline methods (scipy is already in requirements.txt)
+pip install scikit-learn>=1.0.0
 ```
 
 ### Step 2: Run Evaluation with Baselines
@@ -387,8 +387,6 @@ Here's a complete example evaluating chunk strategies with baselines:
 ### 1. Initial Setup (One-time)
 
 ```bash
-# From project root
-
 # Prepare data
 python scrape_and_prepare_data/data_preparation.py \
     --input_json scrape_and_prepare_data/haifa_scraped.json \
@@ -505,7 +503,8 @@ jupyter notebook evaluation/analyze_evaluation_results.ipynb
 
 ### Baseline Methods Not Available
 ```bash
-pip install scikit-learn scipy
+# Install scikit-learn for baseline methods (scipy is already in requirements.txt)
+pip install scikit-learn>=1.0.0
 ```
 
 ### Index Not Found

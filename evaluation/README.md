@@ -34,7 +34,7 @@ This folder contains all files related to evaluating chunking strategies for the
   - Contains 20 queries covering different namespaces and categories
   - Can be customized for your evaluation needs
 
-- **`../tests/embedding_testset.json`** - Testset with ground truth labels (recommended)
+- **`tests/embedding_testset.json`** - Testset with ground truth labels (recommended)
   - Contains queries with labeled relevant/irrelevant documents
   - Enables precision, recall, and accuracy metrics
   - Automatically used if available when no testset file is specified
@@ -66,30 +66,27 @@ Run the Python script to generate CSV results:
 
 **Option A: Using testset with ground truth (Recommended)**
 ```bash
-cd evaluation
-python generate_evaluation_results.py \
-    --testset_file ../tests/embedding_testset.json \
-    --output_dir ./evaluation_results
+python evaluation/generate_evaluation_results.py \
+    --testset_file tests/embedding_testset.json \
+    --output_dir evaluation/evaluation_results
 ```
 
 This enables precision, recall, and accuracy metrics based on ground truth labels.
 
 **Option B: Using custom queries**
 ```bash
-cd evaluation
-python generate_evaluation_results.py \
-    --queries_file evaluation_queries.json \
-    --output_dir ./evaluation_results
+python evaluation/generate_evaluation_results.py \
+    --queries_file evaluation/evaluation_queries.json \
+    --output_dir evaluation/evaluation_results
 ```
 
 **Option C: Default (auto-detects testset if available)**
 ```bash
-cd evaluation
-python generate_evaluation_results.py \
-    --output_dir ./evaluation_results
+python evaluation/generate_evaluation_results.py \
+    --output_dir evaluation/evaluation_results
 ```
 
-If `../tests/embedding_testset.json` exists, it will be used automatically. Otherwise, uses default queries.
+If `tests/embedding_testset.json` exists, it will be used automatically. Otherwise, uses default queries.
 
 **Output**: CSV files saved to `evaluation/evaluation_results/`:
 - `evaluation_results.csv` - Raw evaluation data
@@ -177,9 +174,9 @@ The evaluation tests three chunking strategies:
 To include baseline methods for comparison, use `--include_baselines`:
 
 ```bash
-python generate_evaluation_results.py \
+python evaluation/generate_evaluation_results.py \
     --include_baselines \
-    --testset_file ../tests/embedding_testset.json
+    --testset_file tests/embedding_testset.json
 ```
 
 This adds three baseline "strategies" to the evaluation:
@@ -196,8 +193,8 @@ Chunk sizes and overlaps are set during data preparation, not during evaluation.
 **Step 1: Prepare data with specific chunk config**
 ```bash
 python scrape_and_prepare_data/data_preparation.py \
-    --input_json scrape_and_prepare_data/haifa_scraped_data.json \
-    --out_dir ./prepared_data/chunk_500_overlap_100 \
+    --input_json scrape_and_prepare_data/haifa_scraped.json \
+    --out_dir prepared_data/chunk_500_overlap_100 \
     --chunk_chars 500 \
     --chunk_overlap 100
 ```
@@ -205,25 +202,25 @@ python scrape_and_prepare_data/data_preparation.py \
 **Step 2: Index the data**
 ```bash
 python indexing.py \
-    --prepared_file ./prepared_data/chunk_500_overlap_100/haifa_rag_chunks.parquet \
+    --prepared_file prepared_data/chunk_500_overlap_100/haifa_rag_chunks.parquet \
     --index_name haifa-municipality-rag-chunk500 \
     --api_keys_path utils/api_keys.json
 ```
 
 **Step 3: Run evaluation** (specify the index name)
 ```bash
-python generate_evaluation_results.py \
-    --testset_file ../tests/embedding_testset.json \
-    --output_dir ./evaluation_results/chunk_500_overlap_100 \
+python evaluation/generate_evaluation_results.py \
+    --testset_file tests/embedding_testset.json \
+    --output_dir evaluation/evaluation_results/chunk_500_overlap_100 \
     --index_name haifa-municipality-rag-chunk500
 ```
 
 Alternatively, use an environment variable:
 ```bash
 PINECONE_INDEX_NAME=haifa-municipality-rag-chunk500 \
-python generate_evaluation_results.py \
-    --testset_file ../tests/embedding_testset.json \
-    --output_dir ./evaluation_results/chunk_500_overlap_100
+python evaluation/generate_evaluation_results.py \
+    --testset_file tests/embedding_testset.json \
+    --output_dir evaluation/evaluation_results/chunk_500_overlap_100
 ```
 
 ### Automated Method (Helper Script)
@@ -249,9 +246,9 @@ Use the `evaluate_chunk_configurations.py` helper script:
 **Step 2: Run the evaluation script**
 ```bash
 python evaluation/evaluate_chunk_configurations.py \
-    --input_json scrape_and_prepare_data/haifa_scraped_data.json \
+    --input_json scrape_and_prepare_data/haifa_scraped.json \
     --configs evaluation/chunk_configs_example.json \
-    --output_base_dir ./chunk_config_evaluations \
+    --output_base_dir evaluation/chunk_config_evaluations \
     --testset_file tests/embedding_testset.json
 ```
 
@@ -322,10 +319,10 @@ The evaluation supports two formats:
 ## Command Line Options
 
 ```bash
-python generate_evaluation_results.py \
-    --queries_file evaluation_queries.json \      # Custom queries file
-    --testset_file ../tests/embedding_testset.json \  # Testset with ground truth
-    --output_dir ./evaluation_results \          # Output directory
+python evaluation/generate_evaluation_results.py \
+    --queries_file evaluation/evaluation_queries.json \      # Custom queries file
+    --testset_file tests/embedding_testset.json \  # Testset with ground truth
+    --output_dir evaluation/evaluation_results \          # Output directory
     --strategies baseline sentence adaptive \     # Strategies to test
     --top_k 5 \                                  # Number of chunks to retrieve
     --index_name haifa-municipality-rag \        # Pinecone index name
@@ -337,15 +334,19 @@ python generate_evaluation_results.py \
 
 Make sure you have:
 - Data indexed in Pinecone (run `indexing.py` first)
-- `./utils/api_keys.json` with `PINECONE_API_KEY`
-- Required Python packages:
+- `./utils/api_keys.json` with `PINECONE_API_KEY` (and `GEMINI_API_KEY` for answer generation)
+- **All required Python packages** installed:
   ```bash
-  pip install pandas numpy matplotlib seaborn tqdm
+  pip install -r requirements.txt
   ```
-- For baseline methods (optional):
+  This installs all dependencies including pandas, numpy, matplotlib, seaborn, scipy, and more.
+  
+- **For baseline methods** (optional, only if using `--include_baselines`):
   ```bash
-  pip install scikit-learn
+  pip install scikit-learn>=1.0.0
   ```
+  
+  Note: The baseline methods are optional. The evaluation works without them, but you won't be able to compare against TF-IDF/keyword baselines.
 
 ## LLM-as-a-Judge for Answer Evaluation
 
@@ -395,7 +396,7 @@ The judge evaluates answers on 5 metrics (0.0-1.0):
 ```bash
 # 1. Prepare data (if not already done)
 python scrape_and_prepare_data/data_preparation.py \
-    --input_json scrape_and_prepare_data/haifa_scraped_data.json \
+    --input_json scrape_and_prepare_data/haifa_scraped.json \
     --out_dir scrape_and_prepare_data/haifa_prepared_data
 
 # 2. Index data (if not already done)
@@ -405,7 +406,7 @@ python indexing.py \
 # 3. Run evaluation
 python evaluation/generate_evaluation_results.py \
     --testset_file tests/embedding_testset.json \
-    --output_dir ./evaluation_results
+    --output_dir evaluation/evaluation_results
 
 # 4. Visualize results
 jupyter notebook evaluation/analyze_evaluation_results.ipynb

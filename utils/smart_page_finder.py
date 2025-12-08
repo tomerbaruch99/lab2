@@ -48,10 +48,9 @@ class SmartPageFinder:
             embedding_model_name: Name of the embedding model (must match the one used to build index)
             top_k: Number of top pages to return
         """
-        # Set default path if not provided
+        # Set default path if not provided (relative to current working directory - main project directory)
         if page_index_path is None:
-            project_root = Path(__file__).parent.parent
-            page_index_path = project_root / "scrape_and_prepare_data" / "page_index.csv"
+            page_index_path = "scrape_and_prepare_data/page_index.csv"
         
         self.page_index_path = Path(page_index_path)
         self.embedding_model_name = embedding_model_name

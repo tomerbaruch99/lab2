@@ -11,6 +11,16 @@ Calculates confidence scores for RAG answers based on:
 from typing import List, Dict, Any, Tuple
 import numpy as np
 
+from utils import (
+    CONFIDENCE_WEIGHTS,
+    CONFIDENCE_THRESHOLDS,
+    SIMILARITY_THRESHOLD_HIGH,
+    SIMILARITY_THRESHOLD_MEDIUM,
+    SUPPORTED_CLAIM_THRESHOLD,
+    SUPPORTED_CLAIM_RATIO_HIGH,
+    SUPPORTED_CLAIM_RATIO_MEDIUM,
+)
+
 try:
     from sklearn.metrics.pairwise import cosine_similarity
     HAS_SKLEARN = True
@@ -133,7 +143,7 @@ def detect_unsupported_claims(
     answer: str,
     chunks: List[Dict],
     embedding_model=None,
-    threshold: float = 0.3
+    threshold: float = None
 ) -> Tuple[float, List[str]]:
     """
     Detect if the answer contains information not found in retrieved chunks.
@@ -143,11 +153,15 @@ def detect_unsupported_claims(
         chunks: Retrieved chunks
         embedding_model: Optional embedding model for semantic similarity
         threshold: Minimum similarity threshold to consider a claim supported
+                   (defaults to SUPPORTED_CLAIM_THRESHOLD from config)
         
     Returns:
         Tuple of (supported_claim_ratio, unsupported_claims_list)
         supported_claim_ratio: 0-1, where 1 means all claims are supported
     """
+    if threshold is None:
+        threshold = SUPPORTED_CLAIM_THRESHOLD
+    
     if not answer or not chunks:
         return 0.5, []
     
@@ -221,6 +235,51 @@ def detect_unsupported_claims(
         return 0.7, []  # Fallback to moderate score
 
 
+def _generate_confidence_reason(
+    avg_sim: float,
+    overlap: float,
+    supported_ratio: float
+) -> str:
+    """
+    Generate human-readable explanation for confidence score.
+    
+    Args:
+        avg_sim: Average chunk similarity score
+        overlap: Retrieval overlap score
+        supported_ratio: Supported claim ratio
+        
+    Returns:
+        Reason text string
+    """
+    reasons = []
+    
+    # Similarity reason
+    if avg_sim >= SIMILARITY_THRESHOLD_HIGH:
+        reasons.append("high similarity between user query and retrieved chunks")
+    elif avg_sim >= SIMILARITY_THRESHOLD_MEDIUM:
+        reasons.append("moderate similarity between user query and retrieved chunks")
+    else:
+        reasons.append("low similarity between user query and retrieved chunks")
+    
+    # Overlap reason
+    if overlap >= SIMILARITY_THRESHOLD_HIGH:
+        reasons.append("retrieved chunks strongly agree with each other")
+    elif overlap >= SIMILARITY_THRESHOLD_MEDIUM:
+        reasons.append("retrieved chunks moderately agree with each other")
+    else:
+        reasons.append("retrieved chunks show some disagreement")
+    
+    # Supported claims reason
+    if supported_ratio >= SUPPORTED_CLAIM_RATIO_HIGH:
+        reasons.append("no unsupported claims detected")
+    elif supported_ratio >= SUPPORTED_CLAIM_RATIO_MEDIUM:
+        reasons.append("most claims appear to be supported")
+    else:
+        reasons.append("some claims may not be fully supported by retrieved chunks")
+    
+    return "; ".join(reasons) + "."
+
+
 def calculate_confidence(
     chunks: List[Dict],
     answer: str,
@@ -251,45 +310,25 @@ def calculate_confidence(
         answer, chunks, embedding_model
     )
     
-    # Weighted combination
+    # Weighted combination using config weights
+    weights = CONFIDENCE_WEIGHTS
     confidence_score = (
-        0.5 * avg_sim +
-        0.3 * overlap +
-        0.2 * supported_ratio
+        weights["avg_chunk_similarity"] * avg_sim +
+        weights["retrieval_overlap"] * overlap +
+        weights["supported_claim_ratio"] * supported_ratio
     ) * 100  # Convert to percentage
     
-    # Determine confidence level
-    if confidence_score >= 70:
+    # Determine confidence level using config thresholds
+    thresholds = CONFIDENCE_THRESHOLDS
+    if confidence_score >= thresholds["high"]:
         level = "High"
-    elif confidence_score >= 40:
+    elif confidence_score >= thresholds["medium"]:
         level = "Medium"
     else:
         level = "Low"
     
-    # Generate reason
-    reasons = []
-    if avg_sim >= 0.7:
-        reasons.append("high similarity between user query and retrieved chunks")
-    elif avg_sim >= 0.4:
-        reasons.append("moderate similarity between user query and retrieved chunks")
-    else:
-        reasons.append("low similarity between user query and retrieved chunks")
-    
-    if overlap >= 0.7:
-        reasons.append("retrieved chunks strongly agree with each other")
-    elif overlap >= 0.4:
-        reasons.append("retrieved chunks moderately agree with each other")
-    else:
-        reasons.append("retrieved chunks show some disagreement")
-    
-    if supported_ratio >= 0.8:
-        reasons.append("no unsupported claims detected")
-    elif supported_ratio >= 0.5:
-        reasons.append("most claims appear to be supported")
-    else:
-        reasons.append("some claims may not be fully supported by retrieved chunks")
-    
-    reason_text = "; ".join(reasons) + "."
+    # Generate reason using config thresholds
+    reason_text = _generate_confidence_reason(avg_sim, overlap, supported_ratio)
     
     return {
         "confidence_score": round(confidence_score, 1),

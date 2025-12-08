@@ -38,19 +38,21 @@ from google.api_core import exceptions as google_exceptions
 
 from retriever import Retriever
 from prompt_builder import PromptBuilder, PromptStyle
-from utils import DEFAULT_API_KEYS_PATH, DEFAULT_TOP_K
+from utils import (
+    DEFAULT_API_KEYS_PATH,
+    DEFAULT_TOP_K,
+    DEFAULT_GEMINI_MODEL,
+    DEFAULT_EMBEDDING_MODEL,
+    DEFAULT_INDEX_NAME,
+    DEFAULT_SLEEP_BETWEEN_CALLS,
+    DEFAULT_MAX_RETRIES,
+    DEFAULT_INITIAL_RETRY_DELAY,
+    EVIDENCE_KEYWORDS,
+    EVIDENCE_TOP_K_MULTIPLIER,
+    RERANKING_TOP_K_MULTIPLIER,
+)
 from utils.query_enhancement import rephrase_query, enrich_query, rerank_chunks
 from confidence_meter import calculate_confidence
-
-
-# ----------------------------------------------------------------------
-# Gemini defaults
-# ----------------------------------------------------------------------
-
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
-DEFAULT_SLEEP_BETWEEN_CALLS = 1.0  # seconds
-DEFAULT_MAX_RETRIES = 5
-DEFAULT_INITIAL_RETRY_DELAY = 10.0  # seconds
 
 
 # ----------------------------------------------------------------------
@@ -65,24 +67,7 @@ def user_asks_for_evidence(question: str) -> bool:
     to encourage the model to expose sources more clearly.
     """
     q = question.lower()
-    evidence_keywords = [
-        "ראיות",
-        "מקורות",
-        "מסמכים",
-        "תיעוד",
-        "קובץ מקורי",
-        "מקור",
-        "איפה מצאת",
-        "איך יודע",
-        "איך את יודע",
-        "הצג לי",
-        "הראה לי",
-        "פרטים נוספים",
-        "מידע נוסף",
-        "פרט יותר",
-        "pdf",
-    ]
-    return any(k in q for k in evidence_keywords)
+    return any(k in q for k in EVIDENCE_KEYWORDS)
 
 
 def log_interaction(
@@ -222,8 +207,8 @@ class GeminiRAG:
         self,
         api_keys_path: str = DEFAULT_API_KEYS_PATH,
         gemini_model_name: str = DEFAULT_GEMINI_MODEL,
-        embedding_model_name: str = "paraphrase-multilingual-MiniLM-L12-v2",
-        index_name: str = "haifa-municipality-rag-index",
+        embedding_model_name: str = None,
+        index_name: str = None,
         prompt_style: PromptStyle = PromptStyle.DETAILED,
         sleep_between_calls: float = DEFAULT_SLEEP_BETWEEN_CALLS,
         log_file_path: Optional[str] = None,
@@ -231,13 +216,19 @@ class GeminiRAG:
         """
         Args:
             api_keys_path: Path to api_keys.json with both PINECONE_API_KEY and GEMINI_API_KEY
-            gemini_model_name: Gemini model name (e.g. "gemini-2.5-flash")
-            embedding_model_name: Embedding model used by the Retriever
-            index_name: Pinecone index name
+            gemini_model_name: Gemini model name (defaults to DEFAULT_GEMINI_MODEL)
+            embedding_model_name: Embedding model used by the Retriever (defaults to DEFAULT_EMBEDDING_MODEL)
+            index_name: Pinecone index name (defaults to DEFAULT_INDEX_NAME)
             prompt_style: Style for PromptBuilder
             sleep_between_calls: Pause between Gemini calls (for safety)
             log_file_path: Optional path for JSONL logs of interactions
         """
+        # Use defaults from config if not provided
+        if embedding_model_name is None:
+            embedding_model_name = DEFAULT_EMBEDDING_MODEL
+        if index_name is None:
+            index_name = DEFAULT_INDEX_NAME
+        
         # API keys
         self.api_keys = load_api_keys(api_keys_path)
 
@@ -263,6 +254,89 @@ class GeminiRAG:
         self.log_file_path = log_file_path
 
     # ------------------------------------------------------------
+
+    def _determine_effective_top_k(
+        self,
+        top_k: int,
+        question: str,
+        use_reranking: bool
+    ) -> int:
+        """
+        Determine the effective top_k based on query characteristics.
+        
+        Returns a higher top_k if:
+        - User asks for evidence (more sources needed)
+        - Reranking is enabled (need more candidates to rerank)
+        """
+        asks_for_evidence = user_asks_for_evidence(question)
+        effective_top_k = top_k * EVIDENCE_TOP_K_MULTIPLIER if asks_for_evidence else top_k
+        
+        if use_reranking:
+            effective_top_k = max(effective_top_k, top_k * RERANKING_TOP_K_MULTIPLIER)
+        
+        return effective_top_k
+
+    def _retrieve_and_rerank_chunks(
+        self,
+        question: str,
+        top_k: int,
+        strategy: Optional[str],
+        use_reranking: bool
+    ) -> List[Dict]:
+        """
+        Retrieve chunks and optionally rerank them.
+        
+        Returns:
+            List of retrieved chunks (possibly reranked)
+        """
+        effective_top_k = self._determine_effective_top_k(top_k, question, use_reranking)
+        
+        # Retrieve
+        chunks = self.retriever.retrieve(
+            query=question,
+            top_k=effective_top_k,
+            strategy=strategy,
+            include_metadata=True,
+        )
+        
+        # Reranking (optional)
+        if use_reranking and chunks:
+            chunks = rerank_chunks(question, chunks, top_k, self.gemini_model)
+        elif chunks:
+            # If not reranking, just take top_k
+            chunks = chunks[:top_k]
+        
+        return chunks
+
+    def _create_no_results_response(self, question: str, return_chunks: bool) -> Dict[str, Any]:
+        """Create response when no chunks are retrieved."""
+        answer_text = "מצטער, לא מצאתי מידע רלוונטי במאגר המידע של עיריית חיפה."
+        
+        if self.log_file_path:
+            log_interaction(
+                self.log_file_path,
+                question,
+                [],
+                answer_text,
+                has_answer=False,
+            )
+        
+        confidence_info = {
+            "confidence_score": 0.0,
+            "confidence_level": "Low",
+            "avg_chunk_similarity": 0.0,
+            "retrieval_overlap": 0.0,
+            "supported_claim_ratio": 0.0,
+            "reason": "No relevant chunks retrieved.",
+            "unsupported_claims": [],
+        }
+        
+        return {
+            "answer": answer_text,
+            "confidence": confidence_info,
+            "chunks": [] if return_chunks else None,
+            "prompt": "" if return_chunks else None,
+        }
 
     def answer_question(
         self,
@@ -302,55 +376,11 @@ class GeminiRAG:
         if use_query_enhancement:
             question = enrich_query(question, self.gemini_model)
         
-        # Decide if we should lean more into "source-heavy" retrieval (more chunks)
-        asks_for_evidence = user_asks_for_evidence(question)
-        effective_top_k = top_k * 2 if asks_for_evidence else top_k
-        
-        # If using reranking, retrieve more chunks initially
-        if use_reranking:
-            effective_top_k = max(effective_top_k, top_k * 2)
-
-        # Retrieve
-        chunks = self.retriever.retrieve(
-            query=question,
-            top_k=effective_top_k,
-            strategy=strategy,
-            include_metadata=True,
-        )
-        
-        # Reranking (optional)
-        if use_reranking and chunks:
-            chunks = rerank_chunks(question, chunks, top_k, self.gemini_model)
-        elif chunks:
-            # If not reranking, just take top_k
-            chunks = chunks[:top_k]
+        # Retrieve and optionally rerank chunks
+        chunks = self._retrieve_and_rerank_chunks(question, top_k, strategy, use_reranking)
 
         if not chunks:
-            answer_text = "מצטער, לא מצאתי מידע רלוונטי במאגר המידע של עיריית חיפה."
-            if self.log_file_path:
-                log_interaction(
-                    self.log_file_path,
-                    question,
-                    [],
-                    answer_text,
-                    has_answer=False,
-                )
-            # No chunks, so confidence is low
-            confidence_info = {
-                "confidence_score": 0.0,
-                "confidence_level": "Low",
-                "avg_chunk_similarity": 0.0,
-                "retrieval_overlap": 0.0,
-                "supported_claim_ratio": 0.0,
-                "reason": "No relevant chunks retrieved.",
-                "unsupported_claims": [],
-            }
-            return {
-                "answer": answer_text,
-                "confidence": confidence_info,
-                "chunks": [] if return_chunks else None,
-                "prompt": "" if return_chunks else None,
-            }
+            return self._create_no_results_response(question, return_chunks)
 
         # Build prompt from retrieved chunks
         prompt = self.prompt_builder.build_prompt(
@@ -375,6 +405,7 @@ class GeminiRAG:
             embedding_model=self.retriever.embed_model,
         )
 
+        # Build result
         result = {
             "answer": answer,
             "confidence": confidence_info,
@@ -399,6 +430,47 @@ class GeminiRAG:
 
     # ------------------------------------------------------------
 
+    def _format_conversation_history(self, conversation_history: List[Dict[str, str]]) -> str:
+        """
+        Format conversation history into text for prompt.
+        
+        Args:
+            conversation_history: List of message dicts with 'role' and 'content'
+            
+        Returns:
+            Formatted history text in Hebrew
+        """
+        if not conversation_history:
+            return ""
+        
+        history_lines = []
+        for msg in conversation_history:
+            role = msg.get("role", "")
+            content = msg.get("content", "")
+            if role and content:
+                role_hebrew = "משתמש" if role == "user" else "עוזר"
+                history_lines.append(f"{role_hebrew}: {content}")
+        
+        if history_lines:
+            return "הקשר השיחה הקודמת:\n" + "\n".join(history_lines) + "\n\n"
+        return ""
+
+    def _build_conversation_instruction(
+        self,
+        conversation_history: List[Dict[str, str]]
+    ) -> Optional[str]:
+        """
+        Build custom instruction combining conversation history with system instruction.
+        
+        Returns:
+            Combined instruction string, or None if no history
+        """
+        history_text = self._format_conversation_history(conversation_history)
+        
+        if history_text:
+            return history_text + self.prompt_builder.system_instruction
+        return None
+
     def answer_with_conversation(
         self,
         question: str,
@@ -409,12 +481,19 @@ class GeminiRAG:
         """
         Answer a question in the context of a conversation.
 
-        conversation_history:
-            [
-              {"role": "user", "content": "..."},
-              {"role": "assistant", "content": "..."},
-              ...
-            ]
+        Args:
+            question: Current user question
+            conversation_history: List of message dicts with 'role' and 'content'
+                Example: [
+                  {"role": "user", "content": "..."},
+                  {"role": "assistant", "content": "..."},
+                  ...
+                ]
+            top_k: Number of chunks to retrieve
+            strategy: Optional chunking strategy filter
+            
+        Returns:
+            Dictionary with 'answer' and 'chunks'
         """
         chunks = self.retriever.retrieve(
             query=question,
@@ -423,12 +502,15 @@ class GeminiRAG:
             include_metadata=True,
         )
 
-        # Build prompt (conversation history can be included in custom_instruction if needed)
-        # Note: build_chat_prompt doesn't exist, using build_prompt instead
+        # Build custom instruction with conversation history
+        custom_instruction = self._build_conversation_instruction(conversation_history)
+
+        # Build prompt with conversation context
         prompt = self.prompt_builder.build_prompt(
             question=question,
             chunks=chunks,
             include_sources=True,
+            custom_instruction=custom_instruction,
         )
 
         time.sleep(self.sleep_between_calls)

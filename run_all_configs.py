@@ -37,17 +37,18 @@ def run_preparation(input_json: str, out_dir: str, configs: list):
     
     for chunk_chars, chunk_overlap in configs:
         config_suffix = f"chunk{chunk_chars}_overlap{chunk_overlap}"
+        config_out_dir = str(Path(out_dir) / config_suffix)
         print(f"\n[CONFIG] {config_suffix}")
+        print(f"[OUTPUT DIR] {config_out_dir}")
         print("-" * 60)
         
         cmd = [
             sys.executable,
             "scrape_and_prepare_data/data_preparation.py",
             "--input_json", input_json,
-            "--out_dir", out_dir,
+            "--out_dir", config_out_dir,
             "--chunk_chars", str(chunk_chars),
             "--chunk_overlap", str(chunk_overlap),
-            "--config_suffix", config_suffix,
         ]
         
         result = subprocess.run(cmd, capture_output=False)
@@ -72,22 +73,25 @@ def run_indexing(prepared_dir: str, configs: list, index_prefix: str, api_keys_p
     for chunk_chars, chunk_overlap in configs:
         config_suffix = f"chunk{chunk_chars}_overlap{chunk_overlap}"
         index_name = f"{index_prefix}-{config_suffix}"
+        config_prepared_file = Path(prepared_dir) / config_suffix / "haifa_rag_chunks.parquet"
         
         print(f"\n[CONFIG] {config_suffix} -> Index: {index_name}")
+        print(f"[FILE] {config_prepared_file}")
         if namespace:
             print(f"         Namespace: {namespace}")
         print("-" * 60)
         
+        if not config_prepared_file.exists():
+            print(f"[ERROR] Prepared file not found: {config_prepared_file}")
+            return False
+        
         cmd = [
             sys.executable,
             "indexing.py",
-            "--prepared_dir", prepared_dir,
-            "--config", config_suffix,
+            "--prepared_file", str(config_prepared_file),
             "--index_name", index_name,
             "--api_keys_path", api_keys_path,
         ]
-        if namespace:
-            cmd.extend(["--namespace", namespace])
         
         result = subprocess.run(cmd, capture_output=False)
         if result.returncode != 0:
@@ -111,7 +115,7 @@ def generate_comparison_report(prepared_dir: str, configs: list):
     report_data = []
     for chunk_chars, chunk_overlap in configs:
         config_suffix = f"chunk{chunk_chars}_overlap{chunk_overlap}"
-        parquet_path = Path(prepared_dir) / f"haifa_paragraph_index_config_{config_suffix}.parquet"
+        parquet_path = Path(prepared_dir) / config_suffix / "haifa_rag_chunks.parquet"
         
         if not parquet_path.exists():
             print(f"[WARN] File not found: {parquet_path}")
@@ -155,10 +159,10 @@ def main():
         description="Prepare and index multiple chunk configurations for comparison"
     )
     parser.add_argument("--input_json", type=str,
-                        default="./scrape_and_prepare_data/haifa_scraped.json",
+                        default="scrape_and_prepare_data/haifa_scraped.json",
                         help="Path to input JSON file")
     parser.add_argument("--out_dir", type=str,
-                        default="./scrape_and_prepare_data/haifa_prepared_data",
+                        default="scrape_and_prepare_data/haifa_prepared_data",
                         help="Output directory for prepared data")
     parser.add_argument("--prepare-only", action="store_true",
                         help="Only run data preparation, skip indexing")

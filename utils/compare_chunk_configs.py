@@ -22,7 +22,7 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
 from retriever import Retriever
-from utils.config import DEFAULT_INDEX_NAME, DEFAULT_API_KEYS_PATH, DEFAULT_EMBEDDING_MODEL
+from utils import DEFAULT_INDEX_NAME, DEFAULT_API_KEYS_PATH, DEFAULT_EMBEDDING_MODEL
 
 
 def load_testset(path: str) -> List[Dict[str, Any]]:

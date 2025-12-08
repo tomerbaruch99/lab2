@@ -9,6 +9,105 @@ This project implements a complete RAG (Retrieval-Augmented Generation) system f
 - **Prompt Building**: Formats prompts for LLM
 - **Generation**: Uses Gemini to generate answers
 
+## Setup Instructions
+
+### Prerequisites
+
+1. **Python 3.9+** installed on your system
+   ```bash
+   python --version  # Should show 3.9 or higher
+   ```
+
+2. **Scraped data file**: `scrape_and_prepare_data/haifa_scraped.json`
+   - Download from SharePoint: [haifa_scraped.json](https://technionmail-my.sharepoint.com/:u:/g/personal/amit_shirazi_campus_technion_ac_il/EcLo4Nc_EyBHmCe8jC5R8RsBDPihBFq3K_3LUQRGqRXrNA?e=cbqSSN)
+   - Place it in the `scrape_and_prepare_data/` directory
+   - Alternatively, use the scraper notebook (`scrape_and_prepare_data/haifa_muni_scraper.ipynb`) to create this file
+
+3. **API keys file**: `utils/api_keys.json`
+   - Must be created before running indexing or Gemini examples
+   - Format:
+   ```json
+   {
+     "PINECONE_API_KEY": "your-pinecone-api-key-here",
+     "GEMINI_API_KEY": "your-gemini-api-key-here"
+   }
+   ```
+   - You can also set `PINECONE_API_KEY` and `GEMINI_API_KEY` as environment variables instead
+
+4. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+### Initial Setup (One-Time)
+
+1. **Prepare data**:
+   ```bash
+   python scrape_and_prepare_data/data_preparation.py \
+       --input_json scrape_and_prepare_data/haifa_scraped.json \
+       --out_dir scrape_and_prepare_data/haifa_prepared_data
+   ```
+
+2. **Index into Pinecone**:
+   ```bash
+   python indexing.py \
+       --prepared_file scrape_and_prepare_data/haifa_prepared_data/haifa_rag_chunks.parquet
+   ```
+
+## How to Run the Code
+
+### Quick Start: Run the Chatbot
+
+The easiest way to use the system is through the web chatbot:
+
+```bash
+streamlit run chatbot.py
+```
+
+This opens a web interface where you can ask questions in Hebrew about municipal services.
+
+### Run Individual Components
+
+**Retrieve relevant chunks:**
+```bash
+python retriever.py \
+    --query "איך משלמים ארנונה?" \
+    --top_k 5
+```
+
+**Get a complete RAG answer:**
+```bash
+python gemini_integration.py \
+    --question "איך משלמים ארנונה?" \
+    --top_k 5
+```
+
+**Run evaluation:**
+```bash
+python evaluation/generate_evaluation_results.py \
+    --strategies baseline sentence adaptive \
+    --top_k 5
+```
+
+**Run examples:**
+```bash
+python examples/example_retriever_usage.py
+python examples/example_gemini_rag.py
+```
+
+### Common Workflows
+
+**Complete end-to-end workflow:**
+1. Prepare data: `python scrape_and_prepare_data/data_preparation.py --input_json scrape_and_prepare_data/haifa_scraped.json --out_dir scrape_and_prepare_data/haifa_prepared_data`
+2. Index data: `python indexing.py --prepared_file scrape_and_prepare_data/haifa_prepared_data/haifa_rag_chunks.parquet`
+3. Run chatbot: `streamlit run chatbot.py`
+
+**Evaluation workflow:**
+1. Generate results: `python evaluation/generate_evaluation_results.py --testset_file tests/embedding_testset.json`
+2. Analyze results: `python evaluation/analyze_results.py --results_dir evaluation/evaluation_results`
+
+For more detailed instructions, see the main [README.md](README.md) file.
+
 ## File Structure
 
 ```
@@ -17,9 +116,8 @@ project/
 │   ├── data_preparation.py      # Prepares scraped JSON → chunks (Parquet/CSV)
 │   ├── haifa_scraped.json       # Input: Scraped website data
 │   └── haifa_prepared_data/     # Output: Prepared chunks (created by data_preparation.py)
-│       ├── haifa_paragraph_index_config_chunk1000_overlap200.parquet
-│       ├── haifa_paragraph_index_config_chunk1000_overlap200.csv
-│       └── haifa_document_index_config_chunk1000_overlap200.parquet
+│       ├── haifa_rag_chunks.parquet
+│       └── haifa_rag_chunks.csv
 │
 ├── indexing.py                  # Indexes chunks into Pinecone
 ├── retriever.py                 # Retrieves relevant chunks from Pinecone
@@ -99,22 +197,22 @@ project/
   - Config-based filenames for comparison
 
 ### 2. Indexing (`indexing.py`)
-- **Input**: Prepared Parquet/CSV files
+- **Input**: Prepared Parquet file (`haifa_rag_chunks.parquet`)
 - **Output**: Pinecone index
 - **Features**:
   - Document-based IDs (`doc_id::chunk-{chunk_id}`)
-  - Rich metadata (text, chunk_text_only, url, title, subtitle, file_type)
-  - Namespace support (dev/prod/language)
+  - Rich metadata (text, chunk_text_only, url, title, subtitle, doc_type, namespace, chunking_strategy, links)
+  - Namespace support per chunk
   - Batch processing
 
 ### 3. Retrieval (`retriever.py`)
 - **Input**: User question
 - **Output**: Top-K relevant chunks
 - **Features**:
-  - File type filtering (exclude PDFs, include HTML only, etc.)
+  - Automatic namespace detection from query
+  - Strategy filtering (baseline, sentence, adaptive)
   - Metadata filtering (by doc_id, etc.)
-  - Batch retrieval
-  - Document deletion for reindexing
+  - Fallback to general namespace if no results
 
 ### 4. Prompt Building (`prompt_builder.py`)
 - **Input**: Question + retrieved chunks
@@ -178,9 +276,11 @@ Each chunk in Pinecone contains:
 - `url`: Source URL
 - `title`: Page title
 - `subtitle`: Page subtitle
-- `file_type`: pdf, html, doc, xls, txt
+- `doc_type`: Document type (pdf, html, doc, xls, txt)
+- `namespace`: Namespace for filtering (arnona, parking, water, etc.)
+- `chunking_strategy`: Chunking strategy used (baseline, sentence, adaptive)
 - `chunk_id`: Chunk index
-- `filename`: For compatibility
+- `links`: JSON string containing hyperlinks found in the chunk
 
 ## ID Format
 

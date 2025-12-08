@@ -55,15 +55,15 @@ EmbeddingModel = embedding_module.EmbeddingModel
 
 # Optional imports for retrieval comparison
 PINECONE_AVAILABLE = False
-DEFAULT_INDEX_NAME = "haifa-municipality"
-DEFAULT_API_KEYS_PATH = "utils/api_keys.json"
 
 try:
     from retriever import Retriever
-    from utils.config import DEFAULT_INDEX_NAME, DEFAULT_API_KEYS_PATH
+    from utils import DEFAULT_INDEX_NAME, DEFAULT_API_KEYS_PATH
     PINECONE_AVAILABLE = True
 except ImportError:
     # Pinecone not available - similarity test can still run
+    DEFAULT_INDEX_NAME = None
+    DEFAULT_API_KEYS_PATH = None
     pass
 
 
@@ -140,13 +140,14 @@ def test_model_with_index(
     index_name: str,
     api_keys_path: str,
     top_k: int = 5,
-    exclude_pdfs: bool = True,
 ) -> Dict:
     """
     Test a single embedding model using Pinecone index.
     
     WARNING: This only works correctly if the index was created with the same model.
     Using a different model will give incorrect/incomparable results.
+    
+    Note: File type filtering is no longer supported. Use strategy parameter in retriever instead.
     """
     print(f"\n{'='*60}")
     print(f"Testing: {model_name}")
@@ -183,10 +184,10 @@ def test_model_with_index(
         max_score = max(r["score"] for r in results)
         min_score = min(r["score"] for r in results)
         
-        file_types = {}
+        doc_types = {}
         for r in results:
-            ft = r.get("file_type", "unknown")
-            file_types[ft] = file_types.get(ft, 0) + 1
+            dt = r.get("doc_type", "unknown")
+            doc_types[dt] = doc_types.get(dt, 0) + 1
         
         # Check for generic PDF titles
         generic_titles = sum(
@@ -201,7 +202,7 @@ def test_model_with_index(
             "avg_score": avg_score,
             "max_score": max_score,
             "min_score": min_score,
-            "file_types": file_types,
+            "doc_types": doc_types,
             "generic_titles": generic_titles,
             "results": results,
         }
@@ -353,7 +354,7 @@ def print_model_results(model_result: Dict, show_details: bool = True):
     print(f"   Results: {model_result['num_results']}")
     print(f"   Average score: {model_result['avg_score']:.4f}")
     print(f"   Score range: {model_result['min_score']:.4f} - {model_result['max_score']:.4f}")
-    print(f"   File types: {model_result['file_types']}")
+    print(f"   Document types: {model_result['doc_types']}")
     if model_result['generic_titles'] > 0:
         print(f"   ⚠️  Generic titles: {model_result['generic_titles']}")
     
@@ -361,7 +362,7 @@ def print_model_results(model_result: Dict, show_details: bool = True):
         print(f"\n   Top {min(3, len(model_result['results']))} results:")
         for i, result in enumerate(model_result['results'][:3], 1):
             print(f"     {i}. Score: {result['score']:.4f} | "
-                  f"Type: {result.get('file_type', 'unknown')} | "
+                  f"Type: {result.get('doc_type', 'unknown')} | "
                   f"Title: {result.get('title', 'N/A')[:50]}")
 
 
@@ -541,7 +542,6 @@ def compare_models(
     query: str,
     index_name: str = DEFAULT_INDEX_NAME,
     api_keys_path: str = DEFAULT_API_KEYS_PATH,
-    exclude_pdfs: bool = True,
     show_details: bool = True,
 ):
     """
@@ -549,13 +549,14 @@ def compare_models(
     
     WARNING: For accurate comparison, the index must be created with the same
     embedding model. Using different models will give incorrect/incomparable results.
+    
+    Note: File type filtering is no longer supported. Use strategy parameter in retriever instead.
     """
     print("="*60)
     print("EMBEDDING MODEL COMPARISON (via Pinecone)")
     print("="*60)
     print(f"\nQuery: {query}")
     print(f"Index: {index_name}")
-    print(f"Exclude PDFs: {exclude_pdfs}")
     print("\n⚠️  WARNING: Results only accurate if index was created with each model!")
     print("    For direct embedding comparison, use --similarity_test mode.\n")
     print(f"Testing {len(EMBEDDING_MODELS)} models...")
@@ -576,7 +577,6 @@ def compare_models(
             index_name=index_name,
             api_keys_path=api_keys_path,
             top_k=5,
-            exclude_pdfs=exclude_pdfs,
         )
         
         results.append(result)
@@ -611,13 +611,13 @@ def compare_models(
     print(f"🏆 BEST MODEL: {best['model']}")
     print(f"{'='*60}")
     print(f"Average score: {best['avg_score']:.4f}")
-    print(f"File types: {best['file_types']}")
+    print(f"Document types: {best['doc_types']}")
     
     if show_details:
         print(f"\nTop results from best model:")
         for i, result in enumerate(best['results'][:3], 1):
             print(f"\n  {i}. Score: {result['score']:.4f}")
-            print(f"     Type: {result.get('file_type', 'unknown')}")
+            print(f"     Type: {result.get('doc_type', 'unknown')}")
             print(f"     Title: {result.get('title', 'N/A')}")
             print(f"     URL: {result.get('url', 'N/A')[:80]}...")
             content = result.get('chunk_text_only', result.get('text', ''))[:150]
@@ -648,11 +648,6 @@ def main():
         type=str,
         default=DEFAULT_API_KEYS_PATH,
         help="Path to API keys file"
-    )
-    parser.add_argument(
-        "--include_pdfs",
-        action="store_true",
-        help="Include PDFs in results (default: exclude PDFs)"
     )
     parser.add_argument(
         "--no_details",
@@ -709,7 +704,6 @@ def main():
             query=args.query,
             index_name=args.index_name,
             api_keys_path=args.api_keys_path,
-            exclude_pdfs=not args.include_pdfs,
             show_details=not args.no_details,
         )
 

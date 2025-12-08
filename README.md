@@ -2,6 +2,34 @@
 
 This project implements a RAG (Retrieval-Augmented Generation) system for the Haifa municipality website, allowing users to ask questions about municipal services, regulations, and information.
 
+## Quick Start
+
+**Get up and running in 5 minutes:**
+
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Download scraped data (see Prerequisites section below)
+# Place haifa_scraped.json in scrape_and_prepare_data/
+
+# 3. Create API keys file
+# Create utils/api_keys.json with PINECONE_API_KEY and GEMINI_API_KEY
+
+# 4. Prepare and index data
+python scrape_and_prepare_data/data_preparation.py \
+    --input_json scrape_and_prepare_data/haifa_scraped.json \
+    --out_dir scrape_and_prepare_data/haifa_prepared_data
+
+python indexing.py \
+    --prepared_file scrape_and_prepare_data/haifa_prepared_data/haifa_rag_chunks.parquet
+
+# 5. Run the chatbot
+streamlit run chatbot.py
+```
+
+For detailed setup instructions, see [Initial Setup](#initial-setup-one-time) section below.
+
 ## Prerequisites
 
 Before you begin, ensure you have:
@@ -11,8 +39,8 @@ Before you begin, ensure you have:
    python --version  # Should show 3.9 or higher
    ```
 
-2. **Scraped data file**: `scrape_and_prepare_data/haifa_scraped_with_hiperlinks.json`
-   - **Download from SharePoint**: [haifa_scraped_with_hiperlinks.json](https://technionmail-my.sharepoint.com/:u:/g/personal/amit_shirazi_campus_technion_ac_il/ETm0fnq5sGpAtznQTJ7zpZoB0rvYPnz4r1VG42VcX1suJA?e=LHHFSK)
+2. **Scraped data file**: `scrape_and_prepare_data/haifa_scraped.json`
+   - **Download from SharePoint**: [haifa_scraped.json](https://technionmail-my.sharepoint.com/:u:/g/personal/amit_shirazi_campus_technion_ac_il/EcLo4Nc_EyBHmCe8jC5R8RsBDPihBFq3K_3LUQRGqRXrNA?e=cbqSSN)
    - Download the file and place it in the `scrape_and_prepare_data/` directory
    - This file must exist before running data preparation
    - Alternatively, you can use the scraper notebook (`scrape_and_prepare_data/haifa_muni_scraper.ipynb`) to create this file
@@ -32,6 +60,12 @@ Before you begin, ensure you have:
    ```bash
    pip install -r requirements.txt
    ```
+   
+   **Optional dependencies** (for baseline evaluation methods):
+   ```bash
+   pip install scikit-learn>=1.0.0
+   ```
+   Note: The baseline methods (TF-IDF, keyword matching) are optional and only needed if you want to run evaluations with `--include_baselines`. The core RAG system works without this dependency.
 
 ## Usage Guide
 
@@ -40,7 +74,7 @@ This project supports three main use cases. Choose the workflow that matches you
 | Use Case | Goal | Quick Command | Section |
 |---------|------|---------------|---------|
 | **🚀 Run Application** | Use chatbot to ask questions | `streamlit run chatbot.py` | [Running the Application](#running-the-application) |
-| **📊 Evaluate Project** | Compare strategies & analyze performance | `cd evaluation && python generate_evaluation_results.py` | [Evaluating the Project](#evaluating-the-project) |
+| **📊 Evaluate Project** | Compare strategies & analyze performance | `python evaluation/generate_evaluation_results.py` | [Evaluating the Project](#evaluating-the-project) |
 | **💡 See Examples** | Learn how components work | `python examples/example_retriever_usage.py` | [Running Examples](#running-examples) |
 
 ### 🚀 I Want to Run the Application
@@ -59,8 +93,8 @@ This project supports three main use cases. Choose the workflow that matches you
 **Use case**: Compare chunking strategies, analyze performance, and generate evaluation reports.
 
 **Quick start:**
-1. Generate results: `cd evaluation && python generate_evaluation_results.py`
-2. Analyze results: `jupyter notebook analyze_evaluation_results.ipynb` or `python analyze_results.py`
+1. Generate results: `python evaluation/generate_evaluation_results.py`
+2. Analyze results: `jupyter notebook evaluation/analyze_evaluation_results.ipynb` or `python evaluation/analyze_results.py`
 
 **See**: [Evaluating the Project](#evaluating-the-project) section below for detailed steps.
 
@@ -315,7 +349,6 @@ Simple test to verify:
 Most examples can be run directly:
 
 ```bash
-# From project root
 python examples/example_retriever_usage.py
 ```
 
@@ -342,6 +375,62 @@ Use examples to understand how to integrate components into your own code.
 
 Before using any of the workflows above, complete the initial setup:
 
+### Step 1: Install Dependencies
+
+```bash
+# Install all required packages
+pip install -r requirements.txt
+
+# Optional: Install scikit-learn for baseline evaluation methods
+pip install scikit-learn>=1.0.0
+```
+
+### Step 2: Download Scraped Data
+
+Download `haifa_scraped.json` from [SharePoint](https://technionmail-my.sharepoint.com/:u:/g/personal/amit_shirazi_campus_technion_ac_il/EcLo4Nc_EyBHmCe8jC5R8RsBDPihBFq3K_3LUQRGqRXrNA?e=cbqSSN) and place it in `scrape_and_prepare_data/` directory.
+
+Alternatively, use the scraper notebook to generate it:
+```bash
+jupyter notebook scrape_and_prepare_data/haifa_muni_scraper.ipynb
+```
+
+### Step 3: Configure API Keys
+
+Create `utils/api_keys.json` with your API keys:
+```json
+{
+  "PINECONE_API_KEY": "your-pinecone-api-key-here",
+  "GEMINI_API_KEY": "your-gemini-api-key-here"
+}
+```
+
+Or set environment variables:
+```bash
+export PINECONE_API_KEY="your-pinecone-api-key"
+export GEMINI_API_KEY="your-gemini-api-key"
+```
+
+### Step 4: Prepare and Index Data
+
+```bash
+# Prepare data (creates chunks)
+python scrape_and_prepare_data/data_preparation.py \
+    --input_json scrape_and_prepare_data/haifa_scraped.json \
+    --out_dir scrape_and_prepare_data/haifa_prepared_data
+
+# Index into Pinecone
+python indexing.py \
+    --prepared_file scrape_and_prepare_data/haifa_prepared_data/haifa_rag_chunks.parquet
+```
+
+### Step 5: Build Page Index (Optional, for Smart Page Finder)
+
+```bash
+python utils/build_page_index.py
+```
+
+After completing these steps, you're ready to use the system! See [Usage Guide](#usage-guide) above for next steps.
+
 ## Project Structure
 
 ```
@@ -349,7 +438,7 @@ project/
 ├── scrape_and_prepare_data/
 │   ├── haifa_prepared_data/   # Output directory (created by data_preparation.py)
 │   ├── data_preparation.py    # Prepares scraped data for RAG indexing
-│   ├── haifa_scraped_with_hiperlinks.json    # Scraped data from Haifa municipality website (download from SharePoint - see Prerequisites)
+│   ├── haifa_scraped.json    # Scraped data from Haifa municipality website (download from SharePoint - see Prerequisites)
 │   └── haifa_muni_scraper.ipynb
 ├── indexing.py               # Indexes prepared data into Pinecone
 ├── retriever.py             # Retrieves relevant chunks from Pinecone
@@ -390,7 +479,7 @@ The data preparation process converts the scraped JSON data into a format suitab
 
 ### Input Format
 
-The input JSON file (`haifa_scraped_with_hiperlinks.json`) should contain an array of page objects, each with:
+The input JSON file (`haifa_scraped.json`) should contain an array of page objects, each with:
 - `url`: The page URL
 - `title`: Page title
 - `subtitle`: Page subtitle (optional)
@@ -398,50 +487,39 @@ The input JSON file (`haifa_scraped_with_hiperlinks.json`) should contain an arr
 
 ### Usage
 
-```bash
-cd scrape_and_prepare_data
-python data_preparation.py \
-    --input_json haifa_scraped_with_hiperlinks.json \
-    --out_dir ./haifa_prepared_data \
-    --chunk_chars 1000 \
-    --chunk_overlap 200
-```
-
-Or from the project root:
-```bash
-python scrape_and_prepare_data/data_preparation.py \
-    --input_json scrape_and_prepare_data/haifa_scraped_with_hiperlinks.json \
-    --out_dir haifa_prepared_data \
-    --chunk_chars 1000 \
-    --chunk_overlap 200
-```
+   ```bash
+   python scrape_and_prepare_data/data_preparation.py \
+       --input_json scrape_and_prepare_data/haifa_scraped.json \
+       --out_dir scrape_and_prepare_data/haifa_prepared_data \
+       --chunk_chars 1000 \
+       --chunk_overlap 200
+   ```
 
 ### Parameters
 
-- `--input_json`: Path to the input JSON file (default: `./scrape_and_prepare_data/haifa_scraped_with_hiperlinks.json`)
-- `--out_dir`: Output directory for prepared data (default: `./scrape_and_prepare_data/haifa_prepared_data`)
+- `--input_json`: Path to the input JSON file (required)
+- `--out_dir`: Output directory for prepared data (required)
 - `--chunk_chars`: Maximum characters per chunk (default: 1000)
 - `--chunk_overlap`: Character overlap between chunks (default: 200)
-- `--config_suffix`: Optional config suffix for filenames (default: auto-generated from chunk_chars and chunk_overlap)
-- `--run_all_configs`: Run multiple chunk size/overlap configurations
 
 ### Output
 
-The script generates (with config suffix, e.g., `chunk1000_overlap200`):
-- `haifa_paragraph_index_config_{config_suffix}.parquet`: Main chunk index in Parquet format
-- `haifa_paragraph_index_config_{config_suffix}.csv`: Same data in CSV format (fallback)
-- `haifa_document_index_config_{config_suffix}.parquet`: Document-level summary
+The script generates:
+- `haifa_rag_chunks.parquet`: Main chunk index in Parquet format
+- `haifa_rag_chunks.csv`: Same data in CSV format (fallback)
 
 Each chunk contains:
 - `doc_id`: Document identifier (derived from URL)
 - `url`: Original page URL
-- `filename`: Filename for compatibility
 - `chunk_id`: Chunk index within document
-- `start_char`: Character position in original text
 - `text`: Full chunk text (includes title/subtitle context)
 - `title`: Page title
 - `subtitle`: Page subtitle
 - `chunk_text_only`: Just the chunk content without title/subtitle
+- `doc_type`: Document type (pdf, html, doc, xls, txt)
+- `namespace`: Namespace for filtering (arnona, parking, water, etc.)
+- `chunking_strategy`: Chunking strategy used (baseline, sentence, adaptive)
+- `links`: JSON string containing hyperlinks found in the chunk
 
 ## Indexing
 
@@ -453,7 +531,7 @@ After data preparation, index the chunks into Pinecone for retrieval.
 
 ```bash
 python indexing.py \
-    --prepared_dir ./scrape_and_prepare_data/haifa_prepared_data \
+    --prepared_file scrape_and_prepare_data/haifa_prepared_data/haifa_rag_chunks.parquet \
     --api_keys_path utils/api_keys.json \
     --embedding_model paraphrase-multilingual-MiniLM-L12-v2 \
     --index_name haifa-municipality-rag-index \
@@ -462,15 +540,11 @@ python indexing.py \
 
 ### Parameters
 
-- `--prepared_dir`: Directory with prepared data (default: `./scrape_and_prepare_data/haifa_prepared_data`)
-- `--paragraph_parquet`: Parquet filename (default: `haifa_paragraph_index_config_chunk1000_overlap200.parquet`)
-- `--paragraph_csv`: CSV filename fallback (default: `haifa_paragraph_index_config_chunk1000_overlap200.csv`)
-- `--config`: Config suffix to use (e.g., `chunk1000_overlap200`). If provided, overrides paragraph_parquet/csv.
+- `--prepared_file`: Path to the prepared Parquet file (required) - should be `haifa_rag_chunks.parquet` generated by data_preparation.py
 - `--api_keys_path`: Path to API keys file (default: `utils/api_keys.json`)
 - `--embedding_model`: SentenceTransformer model name (default: `paraphrase-multilingual-MiniLM-L12-v2`)
 - `--index_name`: Pinecone index name (default: `haifa-municipality-rag-index`)
-- `--batch_size`: Batch size for embedding/upsert (default: 128)
-- `--namespace`: Optional namespace for dev/prod/language separation
+- `--batch_size`: Batch size for embedding/upsert (default: 32)
 
 ### Troubleshooting: Dimension Mismatch Error
 
@@ -501,12 +575,39 @@ pc.delete_index("haifa-municipality-rag-index")
 
 ## Installation
 
-Install dependencies:
+### Required Dependencies
+
+Install all required packages:
 ```bash
 pip install -r requirements.txt
 ```
 
-For a complete end-to-end setup, see the [Quickstart](#quickstart-end-to-end) section above.
+This installs:
+- **Core**: pandas, numpy, pyarrow, tqdm
+- **ML/Embeddings**: sentence-transformers, torch, transformers
+- **Vector DB**: pinecone
+- **LLM**: google-generativeai
+- **Web UI**: streamlit
+- **Visualization**: matplotlib, seaborn
+- **Statistics**: scipy
+
+### Optional Dependencies
+
+For baseline evaluation methods (TF-IDF, keyword matching):
+```bash
+pip install scikit-learn>=1.0.0
+```
+
+**Note**: The baseline methods are only needed if you plan to run evaluations with `--include_baselines`. The core RAG system works without this dependency.
+
+### Python Version
+
+Requires **Python 3.9 or higher**. Check your version:
+```bash
+python --version
+```
+
+For a complete end-to-end setup, see the [Initial Setup](#initial-setup-one-time) section above.
 
 ## Chunking Strategy
 
@@ -684,12 +785,12 @@ result = rag.answer_question("איך משלמים ארנונה?", top_k=5)
 print(result["answer"])
 ```
 
-**Exclude PDFs (get HTML/TXT only):**
+**Filter by chunking strategy:**
 ```python
 result = rag.answer_question(
     "מה מספר הטלפון של המוקד?",
     top_k=5,
-    exclude_file_types=["pdf"]
+    strategy="adaptive"  # Use "baseline", "sentence", or "adaptive"
 )
 ```
 
@@ -712,7 +813,7 @@ result = rag.answer_with_conversation(
 python gemini_integration.py \
     --question "איך משלמים ארנונה?" \
     --top_k 5 \
-    --exclude_file_types pdf
+    --strategy adaptive
 ```
 
 ### Features

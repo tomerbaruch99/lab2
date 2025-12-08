@@ -42,15 +42,15 @@ def build_page_index(
     Build page index CSV from scraped JSON data.
     
     Args:
-        json_path: Path to the scraped JSON file (defaults to scrape_and_prepare_data/haifa_scraped_with_hiperlinks.json)
+        json_path: Path to the scraped JSON file (defaults to scrape_and_prepare_data/haifa_scraped.json)
         output_path: Path to output CSV file (defaults to scrape_and_prepare_data/page_index.csv)
         embedding_model_name: Name of the embedding model to use
     """
-    # Set default paths
+    # Set default paths (relative to current working directory - main project directory)
     if json_path is None:
-        json_path = project_root / "scrape_and_prepare_data" / "haifa_scraped_with_hiperlinks.json"
+        json_path = "scrape_and_prepare_data/haifa_scraped.json"
     if output_path is None:
-        output_path = project_root / "scrape_and_prepare_data" / "page_index.csv"
+        output_path = "scrape_and_prepare_data/page_index.csv"
     
     json_path = Path(json_path)
     output_path = Path(output_path)
@@ -130,7 +130,7 @@ if __name__ == "__main__":
         "--json_path",
         type=str,
         default=None,
-        help="Path to scraped JSON file (defaults to scrape_and_prepare_data/haifa_scraped_with_hiperlinks.json)"
+        help="Path to scraped JSON file (defaults to scrape_and_prepare_data/haifa_scraped.json)"
     )
     parser.add_argument(
         "--output_path",

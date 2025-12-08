@@ -21,10 +21,12 @@ def diagnose_retrieval_issues():
     
     query = "איך משלמים ארנונה?"
     
+    from utils import DEFAULT_EMBEDDING_MODEL, DEFAULT_INDEX_NAME, DEFAULT_API_KEYS_PATH
+    
     retriever = Retriever(
-        api_keys_path="./utils/api_keys.json",
-        embedding_model_name="paraphrase-multilingual-MiniLM-L12-v2",
-        index_name="haifa-municipality-rag-index",
+        api_keys_path=DEFAULT_API_KEYS_PATH,
+        embedding_model_name=DEFAULT_EMBEDDING_MODEL,
+        index_name=DEFAULT_INDEX_NAME,
     )
     
     print(f"\nQuery: {query}\n")
@@ -36,8 +38,9 @@ def diagnose_retrieval_issues():
     all_results = retriever.retrieve(query, top_k=10)
     print(f"Found {len(all_results)} results\n")
     
-    pdf_count = sum(1 for r in all_results if r.get("file_type") == "pdf")
-    html_count = sum(1 for r in all_results if r.get("file_type") in ["html", "txt"])
+    # Check doc_type
+    pdf_count = sum(1 for r in all_results if r.get("doc_type") == "pdf")
+    html_count = sum(1 for r in all_results if r.get("doc_type") in ["html", "txt"])
     print(f"PDF results: {pdf_count}")
     print(f"HTML/TXT results: {html_count}")
     print(f"Other: {len(all_results) - pdf_count - html_count}")
@@ -64,7 +67,7 @@ def diagnose_retrieval_issues():
     print("\nDocument Type Distribution:")
     doc_type_counts = {}
     for r in all_results:
-        doc_type = r.get("metadata", {}).get("doc_type", "unknown") if isinstance(r.get("metadata"), dict) else "unknown"
+        doc_type = r.get("doc_type", "unknown")
         doc_type_counts[doc_type] = doc_type_counts.get(doc_type, 0) + 1
     for doc_type, count in doc_type_counts.items():
         print(f"  - {doc_type}: {count} results")
@@ -102,8 +105,8 @@ def diagnose_retrieval_issues():
     print("   Use: strategy='adaptive' or strategy='sentence'")
     print("\n2. Namespace is automatically detected from query:")
     print("   Queries with 'ארנונה' map to 'arnona' namespace")
-    print("\n3. Embedding model information:")
-    print("   Current: 'paraphrase-multilingual-MiniLM-L12-v2'")
+    print(f"\n3. Embedding model information:")
+    print(f"   Current: '{DEFAULT_EMBEDDING_MODEL}'")
     print("   (Optimized for Hebrew and multilingual content)")
     print("\n4. Check if indexed content actually contains relevant information")
     print("   about your query topic.")

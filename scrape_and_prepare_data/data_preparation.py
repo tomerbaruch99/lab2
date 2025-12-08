@@ -32,11 +32,18 @@ import argparse
 import json
 import os
 import re
+import sys
 from pathlib import Path
 from typing import List, Dict, Tuple, Union
 from urllib.parse import urlparse
 import pandas as pd
 from tqdm import tqdm
+
+# Add project root to path for imports
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+from utils import DEFAULT_CHUNK_CHARS, DEFAULT_CHUNK_OVERLAP
 
 
 # ==============================================================
@@ -241,7 +248,7 @@ def extract_links_from_content(content: str, title: str = "", subtitle: str = ""
 def ensure_links_valid(links: Union[List, str, None], raw_content: str, title: str = "", subtitle: str = "") -> Tuple[str, List[Dict[str, str]]]:
     """
     Ensure links metadata contains valid hyperlinks.
-    Extracts links from content that contains [URL: ...] markers.
+    Prioritizes links from scraped metadata, then extracts from content if needed.
     Removes link markers from content and returns cleaned content and extracted links.
     
     Args:
@@ -254,23 +261,28 @@ def ensure_links_valid(links: Union[List, str, None], raw_content: str, title: s
         Tuple of (cleaned_content, links_list)
         links_list contains dicts with 'text', 'raw_text', and 'url' keys
     """
-    # First, try to extract links from content using [URL: ...] pattern
+    # First, normalize existing links from metadata (prioritize scraped links)
+    normalized_links = normalize_links(links)
+    
+    # If we have valid links from metadata, use those
+    # But still clean content if it has [URL: ...] markers
+    if normalized_links:
+        if raw_content:
+            # Clean content of [URL: ...] markers if present, but keep the scraped links
+            cleaned_content, _ = extract_links_from_content(raw_content, title, subtitle)
+            return cleaned_content, normalized_links
+        else:
+            return raw_content or "", normalized_links
+    
+    # If no valid links from metadata, try to extract from content using [URL: ...] pattern
     if raw_content:
         cleaned_content, extracted_links = extract_links_from_content(raw_content, title, subtitle)
         
         # If we found links in content, use those
         if extracted_links:
             return cleaned_content, extracted_links
-    
-    # Otherwise, normalize existing links from metadata
-    normalized_links = normalize_links(links)
-    
-    # If we have valid links from metadata, return original content with those links
-    if normalized_links:
-        return raw_content or "", normalized_links
-    
-    # Last resort: try to extract any URLs from content as fallback
-    if raw_content:
+        
+        # Last resort: try to extract any URLs from content as fallback
         extracted_urls = extract_urls_from_text(raw_content)
         if extracted_urls:
             # Convert extracted URLs to link format (without context)
@@ -317,9 +329,40 @@ def clean_semantic_text(text: str) -> str:
 # ==============================================================
 
 def compute_namespace(url: str, title: str, content: str) -> str:
+    """
+    Determine the namespace for a document based on URL, title, and content.
+    
+    Namespaces help organize documents by topic in the Pinecone index, improving
+    retrieval precision. This function uses keyword matching in both English
+    and Hebrew to classify documents into categories.
+    
+    Args:
+        url: Document URL (checked for keywords)
+        title: Document title (checked for keywords)
+        content: Document content (checked for keywords)
+        
+    Returns:
+        Namespace string: one of:
+        - "arnona": Property tax and municipal fees
+        - "water": Water services and billing
+        - "education": Educational services
+        - "sanitation": Waste management and cleaning
+        - "parking": Parking and traffic
+        - "emergency": Emergency services and shelters
+        - "engineering": Building permits and engineering
+        - "welfare": Social services and welfare
+        - "business": Business licensing
+        - "culture": Cultural events and exhibitions
+        - "general": Default fallback namespace
+        
+    Note:
+        The function checks both URL and combined title+content for keywords.
+        First match wins. If no keywords match, returns "general".
+    """
     u = url.lower()
     t = (title + " " + content).lower()
 
+    # Namespace keyword mapping (English and Hebrew)
     mapping = {
         "arnona": ["arnona", "ארנונה"],
         "water": ["water", "מים"],
@@ -333,6 +376,7 @@ def compute_namespace(url: str, title: str, content: str) -> str:
         "culture": ["culture", "אירועים", "מופע", "תערוכה"],
     }
 
+    # Check for keywords in URL or text (title + content)
     for ns, keys in mapping.items():
         for k in keys:
             if k in u or k in t:
@@ -342,24 +386,58 @@ def compute_namespace(url: str, title: str, content: str) -> str:
 
 
 def classify_doc_type(url: str, title: str, content: str) -> str:
+    """
+    Classify document type based on URL, title, and content characteristics.
+    
+    Document type classification helps the adaptive chunking strategy select
+    the most appropriate chunking method for each document. Different document
+    types benefit from different chunking approaches.
+    
+    Args:
+        url: Document URL (checked for file extensions)
+        title: Document title (checked for keywords)
+        content: Document content (checked for keywords)
+        
+    Returns:
+        Document type string, one of:
+        - "pdf": PDF documents (detected from URL)
+        - "event": Event announcements and cultural activities
+        - "table": Pricing tables and tariff documents
+        - "procedural": How-to guides and procedure documents
+        - "general_info": General information and service descriptions
+        - "mixed": Default fallback for unclassified documents
+        
+    Note:
+        Classification uses keyword matching in Hebrew and English.
+        PDF detection is based on URL extension.
+        The adaptive chunking strategy uses this classification to select
+        appropriate chunking methods (e.g., hierarchical for tables,
+        sentence-based for procedural documents).
+    """
     u = url.lower()
     t = (title + " " + content).lower()
 
+    # Check for PDF files (based on URL extension)
     if u.endswith(".pdf") or ".pdf" in u:
         return "pdf"
 
+    # Check for event-related content
     if any(kw in t for kw in ["אירוע", "event", "תערוכה", "פסטיבל", "החג של החגים"]):
         return "event"
 
+    # Check for pricing/tariff tables
     if any(kw in t for kw in ["תעריף", "מחירון"]):
         return "table"
 
+    # Check for procedural/how-to documents
     if any(kw in t for kw in ["איך", "כיצד", "בקשה", "טופס", "הליך"]):
         return "procedural"
 
+    # Check for general information documents
     if any(kw in t for kw in ["שירות", "service", "מידע", "תושב"]):
         return "general_info"
 
+    # Default fallback
     return "mixed"
 
 
@@ -484,18 +562,54 @@ def chunk_hierarchical(text: str, max_chars: int) -> List[str]:
 
 # 3. ADAPTIVE --------------------------------------------------
 def chunk_adaptive(text: str, doc_type: str, max_chars: int, overlap: int) -> List[str]:
+    """
+    Adaptive chunking strategy that selects the best chunking method based on document type.
+    
+    This is the "smart" chunking strategy that dynamically chooses chunking methods
+    based on document characteristics. Different document types benefit from different
+    chunking approaches:
+    - Events: Date/time-based chunking to preserve temporal structure
+    - Tables: Paragraph-based chunking to preserve table structure
+    - Procedural: Sentence-based chunking to preserve step-by-step instructions
+    - General info: Paragraph-based chunking for natural content flow
+    - Others: Baseline chunking with overlap as fallback
+    
+    Args:
+        text: Text content to chunk
+        doc_type: Document type classification (from classify_doc_type)
+        max_chars: Maximum characters per chunk
+        overlap: Character overlap between chunks (used for baseline fallback)
+        
+    Returns:
+        List of text chunks, each respecting max_chars limit
+        
+    Strategy Selection:
+        - "procedural" → chunk_by_sentences(): Preserves step-by-step flow
+        - "general_info" or "table" → chunk_by_paragraphs(): Natural paragraph boundaries
+        - "event" → chunk_event(): Preserves event date/time structure
+        - "mixed"/"pdf"/others → chunk_baseline(): Character-based with overlap
+        
+    Note:
+        This strategy is one of three main chunking strategies (baseline, sentence, adaptive).
+        The adaptive strategy provides the best results for diverse document types but
+        requires document type classification to work effectively.
+    """
     text = text.strip()
     if not text:
         return []
+    # Short text doesn't need chunking
     if len(text) <= max_chars:
         return [text]
 
+    # Procedural documents: use sentence-based chunking to preserve instructions
     if doc_type == "procedural":
         return chunk_by_sentences(text, max_chars)
 
+    # General info and tables: use paragraph-based chunking
     if doc_type in {"general_info", "table"}:
         return chunk_by_paragraphs(text, max_chars)
 
+    # Events: use event-specific chunking (preserves date/time structure)
     if doc_type == "event":
         return chunk_event(text, max_chars)
 
@@ -640,11 +754,13 @@ def prepare_data(
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Prepare scraped Haifa municipality data for RAG indexing"
+    )
     parser.add_argument("--input_json", type=str, required=True)
     parser.add_argument("--out_dir", type=str, required=True)
-    parser.add_argument("--chunk_chars", type=int, default=1000)
-    parser.add_argument("--chunk_overlap", type=int, default=200)
+    parser.add_argument("--chunk_chars", type=int, default=DEFAULT_CHUNK_CHARS)
+    parser.add_argument("--chunk_overlap", type=int, default=DEFAULT_CHUNK_OVERLAP)
     args = parser.parse_args()
 
     if not os.path.exists(args.input_json):

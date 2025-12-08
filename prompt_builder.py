@@ -6,7 +6,7 @@ Builds prompts for LLM with retrieved chunks from Pinecone.
 Fully updated to support:
 - Hebrew data
 - hyperlinks list from metadata
-- file_type
+- doc_type
 - chunking_strategy
 - namespace
 - robust URL extraction
@@ -142,8 +142,8 @@ class PromptBuilder:
                         parts.append(f"URL: {chunk['url']}")
                     if chunk.get("chunking_strategy"):
                         parts.append(f"Chunking: {chunk['chunking_strategy']}")
-                    if chunk.get("file_type"):
-                        parts.append(f"סוג קובץ: {chunk['file_type']}")
+                    if chunk.get("doc_type"):
+                        parts.append(f"סוג קובץ: {chunk['doc_type']}")
                     if chunk.get("namespace"):
                         parts.append(f"Namespace: {chunk['namespace']}")
 

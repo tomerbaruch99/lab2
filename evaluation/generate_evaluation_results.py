@@ -13,7 +13,7 @@ For visualization and analysis, use the analyze_evaluation_results.ipynb noteboo
 Usage:
     python generate_evaluation_results.py \
         --queries_file evaluation_queries.json \
-        --output_dir ./evaluation_results \
+        --output_dir evaluation/evaluation_results \
         --top_k 5
 """
 
@@ -33,7 +33,11 @@ from tqdm import tqdm
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from retriever import Retriever
-from utils import DEFAULT_API_KEYS_PATH, DEFAULT_TOP_K
+from utils import (
+    DEFAULT_API_KEYS_PATH,
+    DEFAULT_TOP_K,
+    DEFAULT_EVALUATION_STRATEGIES,
+)
 
 # Import baseline methods
 try:
@@ -196,27 +200,42 @@ def evaluate_retrieval(
     ground_truth_documents: Optional[List[Dict]] = None,
 ) -> Dict[str, Any]:
     """
-    Evaluate retrieval for a single query and strategy.
+    Evaluate retrieval performance for a single query and chunking strategy.
+    
+    This function runs a retrieval query and collects comprehensive metrics about
+    the results, including similarity scores, namespace detection accuracy,
+    document diversity, and optional ground truth-based precision/recall.
     
     Args:
-        retriever: Retriever instance
-        query: User query
-        strategy: Chunking strategy to filter by
-        top_k: Number of chunks to retrieve
-        expected_namespace: Expected namespace for accuracy calculation
-        ground_truth_documents: Optional list of ground truth documents with 'text' and 'label' fields
+        retriever: Retriever instance configured with API keys and index
+        query: User query string in Hebrew
+        strategy: Chunking strategy to filter by ("baseline", "sentence", "adaptive")
+        top_k: Number of top chunks to retrieve (default: 5)
+        expected_namespace: Expected namespace for this query (for accuracy calculation)
+        ground_truth_documents: Optional list of ground truth documents.
+            Each dict should have 'text' and optionally 'label' fields.
+            Used to calculate precision, recall, and accuracy metrics.
         
     Returns:
-        Dictionary with metrics:
-        - avg_score: Average similarity score of retrieved chunks
-        - max_score: Highest similarity score
-        - min_score: Lowest similarity score
+        Dictionary containing evaluation metrics:
+        - avg_score: Average similarity score of retrieved chunks (0-1)
+        - max_score: Highest similarity score among retrieved chunks
+        - min_score: Lowest similarity score among retrieved chunks
+        - std_score: Standard deviation of similarity scores
         - num_results: Number of chunks retrieved
         - detected_namespace: Namespace detected by retriever
-        - namespace_correct: Whether namespace detection was correct
-        - doc_types: Distribution of doc_types in results
-        - unique_docs: Number of unique documents
-        - precision, recall, accuracy: If ground_truth_documents provided
+        - namespace_correct: Boolean indicating if detected namespace matches expected
+        - expected_namespace: The expected namespace (if provided)
+        - doc_types: Dictionary mapping doc_type to count (e.g., {"pdf": 3, "html": 2})
+        - namespaces: Dictionary mapping namespace to count in results
+        - unique_docs: Number of unique documents represented in results
+        - precision: Precision metric (if ground_truth_documents provided)
+        - recall: Recall metric (if ground_truth_documents provided)
+        - accuracy: Accuracy metric (if ground_truth_documents provided)
+        
+    Note:
+        This function suppresses stdout during retrieval to avoid cluttering
+        evaluation output. It captures all metrics from a single retrieval call.
     """
     
     # Suppress print statements during retrieval
@@ -1064,20 +1083,20 @@ def main():
     parser.add_argument(
         "--output_dir",
         type=str,
-        default=str(Path(__file__).parent / "evaluation_results"),
+        default="evaluation/evaluation_results",
         help="Output directory for evaluation results (default: evaluation/evaluation_results)",
     )
     parser.add_argument(
         "--strategies",
         type=str,
         nargs="+",
-        default=["baseline", "sentence", "adaptive"],
+        default=DEFAULT_EVALUATION_STRATEGIES,
         help="Chunking strategies to evaluate",
     )
     parser.add_argument(
         "--top_k",
         type=int,
-        default=5,
+        default=DEFAULT_TOP_K,
         help="Number of chunks to retrieve per query",
     )
     parser.add_argument(

@@ -2,6 +2,10 @@
 
 A lightweight tool that suggests relevant pages from the Haifa municipality website based on user queries using semantic similarity.
 
+## Overview
+
+The Smart Page Finder uses semantic similarity to match user queries to relevant official pages from the Haifa municipality website. It provides a fast, pre-indexed way to suggest pages to users alongside RAG-generated answers.
+
 ## Location
 
 The Smart Page Finder is located in `utils/` for easy access by the chatbot application:
@@ -9,6 +13,26 @@ The Smart Page Finder is located in `utils/` for easy access by the chatbot appl
 - **Main module**: `utils/smart_page_finder.py` - The SmartPageFinder class
 - **Build script**: `utils/build_page_index.py` - Script to build the page index from scraped data
 - **Page index**: `scrape_and_prepare_data/page_index.csv` - Pre-computed embeddings (created by build script)
+
+## Setup Instructions
+
+### Prerequisites
+
+1. **Scraped data file**: `scrape_and_prepare_data/haifa_scraped.json`
+   - Must exist before building the page index
+   - Download from SharePoint or use the scraper notebook
+
+2. **Dependencies**: Install required packages (should already be installed if you've set up the main project):
+   ```bash
+   pip install -r requirements.txt
+   ```
+   The Smart Page Finder uses the same embedding model as the RAG system (`paraphrase-multilingual-MiniLM-L12-v2`).
+
+3. **Build the page index** (one-time setup):
+   ```bash
+   python utils/build_page_index.py
+   ```
+   This creates `scrape_and_prepare_data/page_index.csv` with pre-computed embeddings for all pages.
 
 ## Quick Start
 
@@ -20,7 +44,7 @@ After scraping the website, build the page index:
 from utils.build_page_index import build_page_index
 
 # Uses default paths:
-# - Input: scrape_and_prepare_data/haifa_scraped_with_hiperlinks.json
+# - Input: scrape_and_prepare_data/haifa_scraped.json
 # - Output: scrape_and_prepare_data/page_index.csv
 build_page_index()
 ```

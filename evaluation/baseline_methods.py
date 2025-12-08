@@ -33,7 +33,7 @@ except ImportError:
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from retriever import Retriever, detect_namespace, FALLBACK_NAMESPACE
-from utils import DEFAULT_API_KEYS_PATH, DEFAULT_TOP_K
+from utils import DEFAULT_API_KEYS_PATH, DEFAULT_TOP_K, DEFAULT_EMBEDDING_MODEL
 
 
 # ============================================================
@@ -74,11 +74,8 @@ class TfIdfBaselineRetriever:
             print("[WARN] scikit-learn not available. TF-IDF baseline disabled.")
             return
         
-        # Load data if file exists
+        # Load data if file exists (path relative to current working directory - main project directory)
         data_path = Path(data_file)
-        if not data_path.is_absolute():
-            # Try relative to parent directory
-            data_path = Path(__file__).parent.parent / data_file
         
         if data_path.exists():
             df = pd.read_parquet(data_path)
@@ -148,17 +145,42 @@ class TfIdfBaselineRetriever:
         include_metadata: bool = True,
     ) -> List[Dict]:
         """
-        Retrieve documents using TF-IDF similarity.
+        Retrieve documents using TF-IDF (Term Frequency-Inverse Document Frequency) similarity.
+        
+        This method uses traditional keyword-based retrieval, computing TF-IDF vectors
+        for the query and all documents, then ranking by cosine similarity. This provides
+        a baseline comparison against semantic embedding-based retrieval.
         
         Args:
-            query: Query text
-            top_k: Number of results to return
-            strategy: Optional chunking strategy filter (for compatibility)
-            namespace: Optional namespace filter
-            include_metadata: Whether to include full metadata
+            query: Query text in Hebrew (will be preprocessed)
+            top_k: Number of top results to return
+            strategy: Optional chunking strategy filter ("baseline", "sentence", "adaptive")
+                     for compatibility with main retriever interface
+            namespace: Optional namespace filter (e.g., "arnona", "parking")
+                      If None, automatically detects namespace from query
+            include_metadata: Whether to include full metadata in results
             
         Returns:
-            List of retrieved chunks with similarity scores
+            List of chunk dictionaries, each containing:
+            - id: Document-chunk identifier
+            - score: TF-IDF cosine similarity score (0-1)
+            - metadata: Full document metadata (if include_metadata=True)
+            - chunk_text_only: Chunk content text
+            - url, title, subtitle, doc_id, chunk_id, namespace, chunking_strategy
+            
+        Process:
+            1. Preprocess query (normalize, lowercase, remove special chars)
+            2. Transform query to TF-IDF vector
+            3. Compute cosine similarity with all document vectors
+            4. Get top-k indices sorted by similarity
+            5. Filter by strategy and namespace if specified
+            6. Format results to match Retriever interface
+            
+        Note:
+            - Returns empty list if documents not loaded or sklearn unavailable
+            - Retrieves 2x top_k initially, then filters to top_k
+            - Scores are TF-IDF cosine similarities (typically 0-1 range)
+            - Results are sorted by similarity (highest first)
         """
         if not self.documents or self.vectorizer is None:
             return []
@@ -235,17 +257,19 @@ class RetrievalOnlyBaseline:
     def __init__(
         self,
         api_keys_path: str = DEFAULT_API_KEYS_PATH,
-        embedding_model_name: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-        index_name: str = "haifa-rag",
+        embedding_model_name: str = DEFAULT_EMBEDDING_MODEL,
+        index_name: str = None,
     ):
         """
         Initialize retrieval-only baseline.
         
         Args:
             api_keys_path: Path to API keys file
-            embedding_model_name: Embedding model name
-            index_name: Pinecone index name
+            embedding_model_name: Embedding model name (defaults to DEFAULT_EMBEDDING_MODEL)
+            index_name: Pinecone index name (defaults to DEFAULT_INDEX_NAME)
         """
+        if index_name is None:
+            index_name = DEFAULT_INDEX_NAME
         self.retriever = Retriever(
             api_keys_path=api_keys_path,
             embedding_model_name=embedding_model_name,
@@ -259,15 +283,27 @@ class RetrievalOnlyBaseline:
         strategy: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Answer question by returning top retrieved chunks directly.
+        Answer question by returning top retrieved chunks directly (no LLM generation).
+        
+        This baseline demonstrates the contribution of the generation component
+        by showing what happens when we skip LLM generation and just return
+        retrieved chunks. Useful for understanding how much value the LLM adds.
         
         Args:
-            question: User question
-            top_k: Number of chunks to retrieve
-            strategy: Optional chunking strategy filter
+            question: User question in Hebrew
+            top_k: Number of chunks to retrieve and concatenate
+            strategy: Optional chunking strategy filter ("baseline", "sentence", "adaptive")
             
         Returns:
-            Dictionary with "answer" as concatenated chunk text
+            Dictionary containing:
+            - answer: Concatenated text from top_k retrieved chunks
+            - chunks: List of retrieved chunk dictionaries
+            - method: "retrieval_only" identifier
+            
+        Note:
+            - No LLM is used - just direct retrieval and concatenation
+            - Answer quality depends entirely on retrieval quality
+            - Useful for comparing against full RAG system to measure LLM contribution
         """
         # Retrieve chunks
         chunks = self.retriever.retrieve(
