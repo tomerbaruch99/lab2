@@ -3,7 +3,7 @@
     "query": "איך משלמים ארנונה?",
     "expected_namespace": "arnona",
     "category": "payment"
-    // TODO: add gold keywords: ["ארנונה", "תשלום", "city4u", "חיוב"]
+    // TODO: maybe add gold keywords: ["ארנונה", "תשלום", "city4u", "חיוב"]
   },
   {
     "query": "מה המחיר של חניה?",

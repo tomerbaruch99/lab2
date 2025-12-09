@@ -2,7 +2,7 @@
 Haifa Municipality – Data Preparation for RAG
 =================================================================
 
-This version uses ONLY 3 chunking strategies:
+This version uses 3 chunking strategies:
 
     1. baseline
     2. sentence

@@ -26,10 +26,14 @@ seaborn>=0.12.0
 # Statistical analysis (for evaluation)
 scipy>=1.9.0
 
-# Optional: For baseline methods in evaluation
-# Uncomment if you want to use TF-IDF baseline comparisons
-# scikit-learn>=1.0.0
+# To use TF-IDF baseline comparisons
+scikit-learn>=1.0.0
 
 # Python version compatibility
 importlib_metadata>=4.0.0; python_version<"3.10"
+
+# Jupyter notebook support (for evaluation analysis)
+ipykernel>=6.25.0
+ipython>=8.12.0
+jupyter>=1.0.0
 

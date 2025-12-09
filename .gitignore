@@ -1,0 +1,18 @@
+# Python
+*venv*
+*cache*
+__pycache__/
+*.pyc
+
+# Environment
+api_keys*
+.streamlit/
+
+# Project-specific
+*try*
+# ignore large files
+scrape_and_prepare_data/haifa_scraped.json
+*.parquet
+*.csv
+*.json
+*.pdf

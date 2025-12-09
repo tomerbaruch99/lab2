@@ -153,7 +153,7 @@ Create `evaluation/chunk_configs.json`:
         "name": "medium_chunks",
         "chunk_chars": 1000,
         "chunk_overlap": 150,
-        "description": "Medium chunks (default)"
+        "description": "Medium chunks (default configuration)"
     },
     {
         "name": "large_chunks",
@@ -162,7 +162,13 @@ Create `evaluation/chunk_configs.json`:
         "description": "Large chunks for broader context"
     },
     {
-        "name": "high_overlap",
+        "name": "small_overlap",
+        "chunk_chars": 1000,
+        "chunk_overlap": 50,
+        "description": "Medium chunks with minimal overlap"
+    },
+    {
+        "name": "large_overlap",
         "chunk_chars": 1000,
         "chunk_overlap": 300,
         "description": "Medium chunks with high overlap"
@@ -356,7 +362,7 @@ for config in small_chunks medium_chunks large_chunks; do
         python evaluation/generate_evaluation_results.py \
             --strategies adaptive \
             --top_k $k \
-            --index_name "haifa-municipality-rag-${config}" \
+            --index_name "haifa-municipality-rag-${config//_/-}" \
             --output_dir "evaluation/comprehensive/${config}_k${k}" \
             --include_baselines
     done
@@ -372,7 +378,7 @@ Test the best configuration with full baselines:
 python evaluation/generate_evaluation_results.py \
     --strategies baseline sentence adaptive \
     --top_k 5 \
-    --index_name haifa-municipality-rag-medium_chunks \
+    --index_name haifa-municipality-rag-medium-chunks \
     --include_baselines \
     --testset_file tests/embedding_testset.json \
     --output_dir evaluation/comprehensive_final

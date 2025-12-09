@@ -32,7 +32,7 @@ from tqdm import tqdm
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from retriever import Retriever
+from retriever import Retriever, detect_namespace
 from utils import (
     DEFAULT_API_KEYS_PATH,
     DEFAULT_TOP_K,
@@ -284,9 +284,11 @@ def evaluate_retrieval(
     
     unique_docs = len(set(chunk.get("doc_id", "") for chunk in chunks))
     
-    namespace_correct = False
-    if expected_namespace:
-        namespace_correct = detected_namespace == expected_namespace
+    # If expected_namespace is not provided, infer it from the query
+    if not expected_namespace:
+        expected_namespace = detect_namespace(query)
+    
+    namespace_correct = detected_namespace == expected_namespace
     
     result = {
         "avg_score": np.mean(scores),
@@ -399,9 +401,11 @@ def evaluate_baseline(
     
     unique_docs = len(set(chunk.get("doc_id", "") for chunk in chunks))
     
-    namespace_correct = False
-    if expected_namespace:
-        namespace_correct = detected_namespace == expected_namespace
+    # If expected_namespace is not provided, infer it from the query
+    if not expected_namespace:
+        expected_namespace = detect_namespace(query)
+    
+    namespace_correct = detected_namespace == expected_namespace
     
     return {
         "avg_score": np.mean(scores) if scores else 0.0,
@@ -490,7 +494,7 @@ def compare_strategies(
                 "query": query,
                 "category": category,
                 "strategy": strategy,
-                "expected_namespace": expected_namespace,
+                "expected_namespace": metrics["expected_namespace"],  # Use inferred value if original was None
                 "detected_namespace": metrics["detected_namespace"],
                 "namespace_correct": metrics["namespace_correct"],
                 "avg_score": metrics["avg_score"],
@@ -528,7 +532,7 @@ def compare_strategies(
                     "query": query,
                     "category": category,
                     "strategy": f"baseline_{baseline_name}",
-                    "expected_namespace": expected_namespace,
+                    "expected_namespace": metrics["expected_namespace"],  # Use inferred value if original was None
                     "detected_namespace": metrics["detected_namespace"],
                     "namespace_correct": metrics["namespace_correct"],
                     "avg_score": metrics["avg_score"],
