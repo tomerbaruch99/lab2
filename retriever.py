@@ -69,7 +69,7 @@ def detect_namespace(query: str) -> str:
 
 class Retriever:
     """
-    Updated RAG Retriever for the new Haifa municipality data pipeline.
+    Updated RAG Retriever for the Haifa municipality data pipeline.
     """
 
     def __init__(

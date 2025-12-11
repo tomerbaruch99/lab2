@@ -12,15 +12,8 @@ import json
 import re
 from typing import List, Dict, Optional
 
-# Import call_gemini from gemini_integration to avoid duplication
-import sys
-from pathlib import Path
-
-# Add parent directory to path for imports
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
-
-from gemini_integration import call_gemini
+# Note: call_gemini is imported lazily inside functions to avoid circular import
+# (gemini_integration imports from this module, and this module needs call_gemini)
 
 
 def rephrase_query(question: str, gemini_model) -> str:
@@ -55,6 +48,8 @@ def rephrase_query(question: str, gemini_model) -> str:
 
 החזר רק את הניסוח המשופר, ללא הסברים נוספים.
 """
+    # Lazy import to avoid circular dependency
+    from gemini_integration import call_gemini
     resp = call_gemini(gemini_model, prompt)
     return resp.strip() or question
 
@@ -98,6 +93,8 @@ def enrich_query(question: str, gemini_model) -> str:
 
 החזר רק את השאלה המורחבת, ללא הסברים.
 """
+    # Lazy import to avoid circular dependency
+    from gemini_integration import call_gemini
     resp = call_gemini(gemini_model, prompt)
     return resp.strip() or question
 
@@ -176,6 +173,8 @@ def rerank_chunks(question: str, chunks: List[Dict], top_k: int, gemini_model) -
 
 החזר רק את הרשימה, ללא טקסט נוסף.
 """
+    # Lazy import to avoid circular dependency
+    from gemini_integration import call_gemini
     resp = call_gemini(gemini_model, prompt)
     text = resp.strip()
     

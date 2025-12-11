@@ -15,14 +15,15 @@ from pathlib import Path
 
 # Default paths
 DEFAULT_API_KEYS_PATH = "utils/api_keys.json"
-DEFAULT_INDEX_NAME = "haifa-municipality-rag-index"
+DEFAULT_INDEX_NAME = "haifa-municipality-rag-small-chunks"
 
 # Embedding model
 DEFAULT_EMBEDDING_MODEL = "paraphrase-multilingual-MiniLM-L12-v2"
 DEFAULT_EMBEDDING_DEVICE = "cpu"  # Force CPU to avoid CUDA compatibility issues
 
-# Gemini model
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+# Gemini models
+DEFAULT_GEMINI_MODEL = "gemini-3-pro-preview"  # Default for RAG answer generation
+DEFAULT_LLM_JUDGE_MODEL = "gemini-2.5-pro"  # Default for LLM-as-a-judge evaluation
 
 # Retrieval defaults
 DEFAULT_TOP_K = 5
@@ -120,7 +121,7 @@ SUPPORTED_CLAIM_RATIO_MEDIUM = 0.5
 # Indexing Configuration
 # ============================================================
 
-DEFAULT_BATCH_SIZE = 32
+DEFAULT_BATCH_SIZE = 64
 
 # ============================================================
 # Prompt Building Configuration

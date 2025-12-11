@@ -26,6 +26,7 @@ import seaborn as sns
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from evaluation.quantitative_report_generator import generate_quantitative_report
+from evaluation.visualization_utils import create_all_basic_visualizations
 
 
 def load_results(results_dir: Path):
@@ -77,161 +78,43 @@ def load_results(results_dir: Path):
 
 
 def generate_visualizations(data: dict, output_dir: Path):
-    """Generate visualization plots from loaded data."""
+    """Generate basic visualization plots focusing on distributions."""
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    df = data["results"]
-    strategy_stats = data["strategy_stats"]
+    try:
+        create_all_basic_visualizations(data, output_dir)
+    except Exception as e:
+        print(f"[WARN] Error creating visualizations: {e}")
+        import traceback
+        traceback.print_exc()
     
-    # Set style
-    plt.style.use('seaborn-v0_8-whitegrid')
-    sns.set_palette("husl")
-    
-    # 1. Strategy Comparison
-    if strategy_stats is not None:
-        fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-        
-        # Average scores
-        ax = axes[0, 0]
-        strategies = strategy_stats['strategy']
-        means = strategy_stats['avg_score_mean']
-        stds = strategy_stats.get('avg_score_std', [0] * len(strategies))
-        
-        bars = ax.bar(strategies, means, yerr=stds, capsize=5, alpha=0.7)
-        ax.set_title('Average Retrieval Scores by Strategy', fontsize=14, fontweight='bold')
-        ax.set_ylabel('Average Score')
-        ax.set_xlabel('Strategy')
-        ax.grid(axis='y', alpha=0.3)
-        plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right')
-        
-        # Add value labels on bars
-        for bar, mean, std in zip(bars, means, stds):
-            height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width()/2., height + std,
-                   f'{mean:.3f}±{std:.3f}',
-                   ha='center', va='bottom', fontsize=9)
-        
-        # Namespace accuracy
-        ax = axes[0, 1]
-        if 'namespace_correct_mean' in strategy_stats.columns:
-            accuracies = strategy_stats['namespace_correct_mean']
-            bars = ax.bar(strategies, accuracies, alpha=0.7, color='coral')
-            ax.set_title('Namespace Detection Accuracy', fontsize=14, fontweight='bold')
-            ax.set_ylabel('Accuracy')
-            ax.set_xlabel('Strategy')
-            ax.set_ylim([0, 1])
-            ax.grid(axis='y', alpha=0.3)
-            plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right')
-            
-            for bar, acc in zip(bars, accuracies):
-                height = bar.get_height()
-                ax.text(bar.get_x() + bar.get_width()/2., height,
-                       f'{acc:.2%}',
-                       ha='center', va='bottom', fontsize=10)
-        
-        # Score distribution (box plot)
-        ax = axes[1, 0]
-        strategy_list = df['strategy'].unique()
-        score_data = [df[df['strategy'] == s]['avg_score'].values for s in strategy_list]
-        bp = ax.boxplot(score_data, labels=strategy_list, patch_artist=True)
-        ax.set_title('Score Distribution by Strategy', fontsize=14, fontweight='bold')
-        ax.set_ylabel('Average Score')
-        ax.set_xlabel('Strategy')
-        ax.grid(axis='y', alpha=0.3)
-        plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right')
-        
-        # Color the boxes
-        colors = plt.cm.Set3(range(len(strategy_list)))
-        for patch, color in zip(bp['boxes'], colors):
-            patch.set_facecolor(color)
-        
-        # Query category performance
-        ax = axes[1, 1]
-        if 'category' in df.columns:
-            category_perf = df.groupby(['strategy', 'category'])['avg_score'].mean().unstack(fill_value=0)
-            category_perf.plot(kind='bar', ax=ax, alpha=0.7)
-            ax.set_title('Performance by Query Category', fontsize=14, fontweight='bold')
-            ax.set_ylabel('Average Score')
-            ax.set_xlabel('Strategy')
-            ax.legend(title='Category', bbox_to_anchor=(1.05, 1), loc='upper left')
-            ax.grid(axis='y', alpha=0.3)
-            plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right')
-        
-        plt.tight_layout()
-        plt.savefig(output_dir / 'strategy_comparison.png', dpi=300, bbox_inches='tight')
-        print(f"[OK] Saved strategy comparison plot to {output_dir / 'strategy_comparison.png'}")
-        plt.close()
-    
-    # 2. Namespace Accuracy Heatmap
-    namespace_stats = data["namespace_stats"]
+    # Also create namespace heatmap if available
+    namespace_stats = data.get("namespace_stats")
     if namespace_stats is not None and len(namespace_stats) > 0:
-        fig, ax = plt.subplots(figsize=(12, 8))
-        
-        # Pivot for heatmap
-        pivot = namespace_stats.pivot_table(
-            values='accuracy',
-            index='expected_namespace',
-            columns='strategy',
-            fill_value=0
-        )
-        
-        sns.heatmap(pivot, annot=True, fmt='.2%', cmap='YlOrRd', 
-                   cbar_kws={'label': 'Accuracy'}, ax=ax)
-        ax.set_title('Namespace Detection Accuracy Heatmap', fontsize=14, fontweight='bold')
-        ax.set_xlabel('Strategy')
-        ax.set_ylabel('Expected Namespace')
-        
-        plt.tight_layout()
-        plt.savefig(output_dir / 'namespace_accuracy_heatmap.png', dpi=300, bbox_inches='tight')
-        print(f"[OK] Saved namespace accuracy heatmap to {output_dir / 'namespace_accuracy_heatmap.png'}")
-        plt.close()
-    
-    # 3. Score Distribution
-    score_dist = data["score_distribution"]
-    if score_dist is not None and len(score_dist) > 0:
-        fig, ax = plt.subplots(figsize=(12, 6))
-        
-        strategies = score_dist['strategy'].unique()
-        categories = ['Excellent (≥0.8)', 'Good (0.6-0.8)', 'Moderate (0.4-0.6)', 'Poor (<0.4)']
-        
-        # Prepare data for stacked bar chart
-        category_order = ['Excellent (≥0.8)', 'Good (0.6-0.8)', 'Moderate (0.4-0.6)', 'Poor (<0.4)']
-        bottom = np.zeros(len(strategies))
-        
-        colors_map = {
-            'Excellent (≥0.8)': '#2ecc71',
-            'Good (0.6-0.8)': '#3498db',
-            'Moderate (0.4-0.6)': '#f39c12',
-            'Poor (<0.4)': '#e74c3c'
-        }
-        
-        for cat in category_order:
-            values = []
-            for strat in strategies:
-                cat_data = score_dist[(score_dist['strategy'] == strat) & 
-                                     (score_dist['score_category'] == cat)]
-                if len(cat_data) > 0:
-                    values.append(cat_data.iloc[0]['proportion'])
-                else:
-                    values.append(0)
+        try:
+            fig, ax = plt.subplots(figsize=(12, 8))
+            namespace_stats_df = pd.DataFrame(namespace_stats) if isinstance(namespace_stats, list) else namespace_stats
             
-            ax.bar(strategies, values, bottom=bottom, label=cat, 
-                  color=colors_map.get(cat, '#95a5a6'), alpha=0.8)
-            bottom += np.array(values)
-        
-        ax.set_title('Score Distribution by Strategy', fontsize=14, fontweight='bold')
-        ax.set_ylabel('Proportion of Queries (%)')
-        ax.set_xlabel('Strategy')
-        ax.set_ylim([0, 100])
-        ax.legend(title='Score Category', bbox_to_anchor=(1.05, 1), loc='upper left')
-        ax.grid(axis='y', alpha=0.3)
-        plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right')
-        
-        plt.tight_layout()
-        plt.savefig(output_dir / 'score_distribution.png', dpi=300, bbox_inches='tight')
-        print(f"[OK] Saved score distribution plot to {output_dir / 'score_distribution.png'}")
-        plt.close()
+            pivot = namespace_stats_df.pivot_table(
+                values='accuracy',
+                index='expected_namespace',
+                columns='strategy',
+                fill_value=0
+            )
+            
+            sns.heatmap(pivot, annot=True, fmt='.2%', cmap='YlOrRd', 
+                       cbar_kws={'label': 'Accuracy'}, ax=ax)
+            ax.set_title('Namespace Detection Accuracy Heatmap', fontsize=14, fontweight='bold')
+            ax.set_xlabel('Strategy')
+            ax.set_ylabel('Expected Namespace')
+            
+            plt.tight_layout()
+            plt.savefig(output_dir / '8_namespace_accuracy_heatmap.png', dpi=300, bbox_inches='tight')
+            print(f"[OK] Saved namespace accuracy heatmap to {output_dir / '8_namespace_accuracy_heatmap.png'}")
+            plt.close()
+        except Exception as e:
+            print(f"[WARN] Error creating namespace heatmap: {e}")
 
 
 def print_summary(data: dict):

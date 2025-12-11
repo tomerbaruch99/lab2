@@ -1,16 +1,9 @@
 # Complete Evaluation Workflow Guide
 
-This document provides a comprehensive, step-by-step guide for evaluating the RAG system, including different chunking strategies, chunk sizes, chank overlaps, K values for retrieval, and baseline comparisons.
+This document provides a clear, step-by-step guide for evaluating the RAG system. The workflow is organized into two main phases:
 
-## Overview
-
-The evaluation system supports multiple evaluation scenarios:
-
-1. **Chunking Strategy Evaluation**: Compare baseline, sentence, and adaptive chunking strategies
-2. **Chunk Size/Overlap Evaluation**: Test different chunk sizes and overlap configurations
-3. **Top-K Value Evaluation**: Test different numbers of retrieved chunks (K)
-4. **Baseline Comparison**: Compare against TF-IDF, keyword matching, and retrieval-only baselines
-5. **Combined Evaluation**: Run comprehensive evaluations combining multiple factors
+1. **PHASE 1: Find Best Configuration** - Test strategies, chunk configs, K values, and baselines
+2. **PHASE 2: Test Query Enrichment & Reranking** - Evaluate enhancements on your best configuration
 
 ---
 
@@ -31,47 +24,95 @@ Before starting evaluation, ensure you have:
    ```
    This installs all dependencies including scipy for statistical analysis.
    
-   **For baseline methods** (optional, only if using `--include_baselines`):
+   **For baseline methods** (required for Phase 1):
    ```bash
    pip install scikit-learn>=1.0.0
    ```
 
 ---
 
-## Workflow Overview
+## Complete Evaluation Workflow
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    EVALUATION WORKFLOW                       │
+│              COMPLETE EVALUATION WORKFLOW                    │
 └─────────────────────────────────────────────────────────────┘
 
-PHASE 1: RESULTS GENERATION (Requires API Access)
-┌─────────────────────────────────────────────────────────────┐
-1. PREPARE DATA (one-time or per config)
-   └─> scrape_and_prepare_data/data_preparation.py
+═══════════════════════════════════════════════════════════════
+PHASE 1: FIND BEST CONFIGURATION
+═══════════════════════════════════════════════════════════════
+Goal: Determine optimal strategy, chunk config, and K value
 
-2. INDEX DATA (per configuration)
-   └─> indexing.py  [Queries Pinecone API]
+Step 1.1: Test Chunking Strategies
+  └─> Compare baseline, sentence, adaptive strategies
 
-3. GENERATE EVALUATION RESULTS
-   ├─> generate_evaluation_results.py   [Queries Pinecone/Gemini]
-   │   └─> Saves CSV files locally
-   └─> evaluate_chunk_configurations.py [Queries Pinecone/Gemini]
-       └─> Saves CSV files locally
-└─────────────────────────────────────────────────────────────┘
+Step 1.2: Test Chunk Configurations  
+  └─> Compare different chunk sizes and overlaps
 
-PHASE 2: ANALYSIS (No API Access Required)
-┌─────────────────────────────────────────────────────────────┐
-4. ANALYZE RESULTS (reads local CSV files only)
-   ├─> analyze_results.py               [Command-line, no APIs]
-   └─> analyze_evaluation_results.ipynb   [Jupyter, no APIs]
-       └─> Generates visualizations and statistics
-└─────────────────────────────────────────────────────────────┘
+Step 1.3: Test K Values
+  └─> Test different numbers of retrieved chunks (K=3, 5, 10, etc.)
+
+Step 1.4: Compare Against Baselines
+  └─> Validate improvements over TF-IDF, keyword matching, etc.
+
+Step 1.5: Analyze Results & Select Best Configuration
+  └─> Review all results and identify best performing combination
+      (strategy + chunk_config + K value)
+
+═══════════════════════════════════════════════════════════════
+PHASE 2: TEST QUERY ENRICHMENT & RERANKING
+═══════════════════════════════════════════════════════════════
+Goal: Evaluate enhancements on your best configuration
+
+Step 2.1: Run Enrichment & Reranking Evaluation
+  └─> Test all 4 combinations:
+      - Baseline (no enrichment, no reranking)
+      - Enrichment only
+      - Reranking only  
+      - Both enrichment and reranking
+
+Step 2.2: Analyze Results
+  └─> Compare improvements and determine if enhancements are worth it
+
+═══════════════════════════════════════════════════════════════
 ```
+
+**IMPORTANT**: Complete Phase 1 first to identify your best configuration, then use that configuration in Phase 2.
 
 ---
 
-## Scenario 1: Evaluate Different Chunking Strategies
+## Quick Start Guide
+
+**New to evaluation?** Follow these steps in order:
+
+### Phase 1: Find Best Configuration (Required First)
+
+1. **Test Strategies** (Step 1.1) - Find best chunking strategy
+2. **Test Chunk Configs** (Step 1.2) - Find best chunk size/overlap (optional)
+3. **Test K Values** (Step 1.3) - Find best number of chunks to retrieve
+4. **Compare Baselines** (Step 1.4) - Validate improvements
+5. **Analyze & Select** (Step 1.5) - Choose your best configuration
+
+**Output**: Best strategy, chunk config, and K value
+
+### Phase 2: Test Enhancements (After Phase 1)
+
+1. **Run Enrichment/Reranking** (Step 2.1) - Test all 4 combinations
+2. **Analyze Results** (Step 2.2) - Decide if enhancements are worth it
+
+**Output**: Decision on whether to use enrichment, reranking, both, or neither
+
+---
+
+# PHASE 1: FIND BEST CONFIGURATION
+
+This phase systematically tests different configurations to find the best performing combination of:
+- **Strategy**: baseline, sentence, or adaptive chunking
+- **Chunk Configuration**: chunk size and overlap
+- **K Value**: number of chunks to retrieve
+- **Baseline Comparison**: validate improvements over traditional methods
+
+## Step 1.1: Test Chunking Strategies
 
 **Goal**: Compare baseline, sentence, and adaptive chunking strategies on existing indexed data.
 
@@ -133,7 +174,7 @@ Both methods:
 
 ---
 
-## Scenario 2: Evaluate Different Chunk Sizes and Overlaps
+## Step 1.2: Test Chunk Configurations
 
 **Goal**: Compare performance across different chunk size and overlap configurations.
 
@@ -239,7 +280,7 @@ python evaluation/evaluate_chunk_configurations.py \
 
 ---
 
-## Scenario 3: Evaluate Different K Values (Top-K)
+## Step 1.3: Test K Values (Top-K)
 
 **Goal**: Test how many chunks to retrieve (K=3, 5, 10, etc.)
 
@@ -291,18 +332,18 @@ Manually compare the `strategy_statistics.csv` files from each output directory,
 
 ---
 
-## Scenario 4: Compare Against Baselines
+## Step 1.4: Compare Against Baselines
 
 **Goal**: Demonstrate system improvements over traditional retrieval methods.
 
-### Step 1: Ensure Baseline Dependencies
+### Ensure Baseline Dependencies
 
 ```bash
 # Install scikit-learn for baseline methods (scipy is already in requirements.txt)
 pip install scikit-learn>=1.0.0
 ```
 
-### Step 2: Run Evaluation with Baselines
+### Run Evaluation with Baselines
 
 ```bash
 python evaluation/generate_evaluation_results.py \
@@ -322,7 +363,7 @@ python evaluation/generate_evaluation_results.py \
 - `statistical_significance_tests.csv` - Statistical test results (p-values)
 - Enhanced `quantitative_analysis_report.md` with baseline comparisons
 
-### Step 3: Review Baseline Comparisons
+### Review Baseline Comparisons
 
 ```bash
 # Check improvement metrics
@@ -342,7 +383,164 @@ cat evaluation/evaluation_results/quantitative_analysis_report.md
 
 ---
 
-## Scenario 5: Comprehensive Combined Evaluation
+## Step 1.5: Analyze Results & Select Best Configuration
+
+**Goal**: Review all evaluation results and identify the best performing configuration.
+
+### Review Results from All Steps
+
+After completing Steps 1.1-1.4, you should have results for:
+- Different strategies (baseline, sentence, adaptive)
+- Different chunk configurations (various sizes/overlaps)
+- Different K values (3, 5, 10, etc.)
+- Baseline comparisons
+
+### Analyze Results
+
+**Option A: Command-Line Analysis**
+```bash
+# Analyze results from each evaluation
+python evaluation/analyze_results.py \
+    --results_dir evaluation/evaluation_results
+```
+
+**Option B: Jupyter Notebook (Recommended)**
+```bash
+# Open Jupyter notebook for visualizations
+jupyter notebook evaluation/analyze_evaluation_results.ipynb
+```
+
+### Key Files to Review
+
+1. **`strategy_statistics.csv`** - Compare mean scores across strategies
+2. **`config_comparison.csv`** - Compare chunk configurations
+3. **`improvements_over_baselines.csv`** - Validate improvements
+4. **`quantitative_analysis_report.md`** - Comprehensive analysis
+
+### Select Best Configuration
+
+Based on your analysis, identify:
+- **Best Strategy**: baseline, sentence, or adaptive
+- **Best Chunk Config**: chunk size and overlap (or use default if not testing configs)
+- **Best K Value**: optimal number of chunks to retrieve
+
+**Example Decision**:
+```
+Best Strategy: adaptive
+Best Chunk Config: medium_chunks (1000 chars, 150 overlap)
+Best K Value: 5
+```
+
+**Document your selection** - You'll need these values for Phase 2.
+
+---
+
+# PHASE 2: TEST QUERY ENRICHMENT & RERANKING
+
+**IMPORTANT**: Only proceed to Phase 2 after completing Phase 1 and identifying your best configuration.
+
+## Step 2.1: Run Enrichment & Reranking Evaluation
+
+**Goal**: Compare all 4 combinations of query enrichment and reranking against your best configuration.
+
+### Overview
+
+The system supports two optional enhancements:
+- **Query Enrichment**: Expands queries with additional keywords using LLM to improve retrieval
+- **Reranking**: Uses LLM to rerank retrieved chunks by relevance before generating answers
+
+This evaluation tests all 4 combinations:
+1. **Baseline**: No enrichment, no reranking (your best config from Phase 1)
+2. **Enrichment Only**: Query enrichment enabled, reranking disabled
+3. **Reranking Only**: Query enrichment disabled, reranking enabled
+4. **Both**: Both enrichment and reranking enabled
+
+### Run LLM Judge Evaluation with Enrichment/Reranking
+
+Use your best configuration from Phase 1. Replace the example values below with your actual best configuration:
+
+```bash
+# Example: Using best config from Phase 1
+# Replace with YOUR best configuration values:
+#   --strategies <your_best_strategy>
+#   --top_k <your_best_k>
+#   --index_name <your_best_chunk_config_index>  # if you tested chunk configs
+
+python evaluation/run_llm_judge_evaluation.py \
+    --testset_file tests/embedding_testset.json \
+    --output_dir evaluation/llm_judge_results \
+    --strategies adaptive \
+    --top_k 5 \
+    --test_enrichment_reranking \
+    --baseline_strategy adaptive  # Use your best performing strategy from Phase 1
+```
+
+**What This Does**:
+- Tests your best strategy from Phase 1
+- Runs evaluation with all 4 combinations of enrichment/reranking:
+  - Baseline (no enrichment, no reranking)
+  - Enrichment only
+  - Reranking only
+  - Both enrichment and reranking
+- Compares each combination against the baseline
+- Generates comparison statistics showing improvements
+
+**Important Notes**:
+- Use your **best strategy** from Phase 1 in `--strategies` and `--baseline_strategy`
+- Use your **best K value** from Phase 1 in `--top_k`
+- If you tested chunk configurations, use your **best chunk config index** in `--index_name`
+
+**Output Files**:
+- `llm_judge_results.csv` - Raw results for all configurations
+- `llm_judge_statistics.csv` - Aggregate statistics per configuration
+- `enrichment_reranking_comparison.csv` - Detailed comparison against baseline
+
+---
+
+## Step 2.2: Analyze Enrichment & Reranking Results
+
+**Goal**: Compare improvements and determine if enhancements are worth the added cost/latency.
+
+### Review Results
+
+The comparison CSV shows for each metric (correctness, faithfulness, completeness, conciseness, overall):
+- **Mean Improvement**: Average improvement over baseline
+- **Median Improvement**: Median improvement over baseline
+- **Proportion Better**: Percentage of queries performing better than baseline
+
+```bash
+# View comparison results
+cat evaluation/llm_judge_results/enrichment_reranking_comparison.csv
+
+# View overall statistics
+cat evaluation/llm_judge_results/llm_judge_statistics.csv
+```
+
+### Key Metrics to Look For
+
+- **Overall Score Improvement**: Which combination performs best?
+- **Consistency**: Are improvements consistent across queries? (high proportion better)
+- **Trade-offs**: Consider cost and latency vs. performance gains
+
+### Interpreting Results
+
+- **"both" shows highest improvement** → Both features work well together
+- **"enrichment_only" shows best results** → Reranking may not be necessary
+- **"reranking_only" shows best results** → Query enrichment may not help
+- **Baseline is best** → Enhancements may not be worth the added cost/latency
+
+### Decision Making
+
+After reviewing results, decide:
+1. **Which combination performs best?**
+2. **Is the improvement worth the added cost/latency?**
+3. **Should you deploy with enrichment, reranking, both, or neither?**
+
+---
+
+# Additional Scenarios
+
+## Scenario: Comprehensive Combined Evaluation
 
 **Goal**: Evaluate everything together (strategies + chunk configs + K values + baselines)
 
@@ -363,7 +561,7 @@ for config in small_chunks medium_chunks large_chunks; do
             --strategies adaptive \
             --top_k $k \
             --index_name "haifa-municipality-rag-${config//_/-}" \
-            --output_dir "evaluation/comprehensive/${config}_k${k}" \
+            --output_dir "evaluation/eval_results_per_config/${config}_k${k}" \
             --include_baselines
     done
 done
@@ -381,16 +579,16 @@ python evaluation/generate_evaluation_results.py \
     --index_name haifa-municipality-rag-medium-chunks \
     --include_baselines \
     --testset_file tests/embedding_testset.json \
-    --output_dir evaluation/comprehensive_final
+    --output_dir evaluation/eval_results_per_config/final
 ```
 
 ---
 
 ## Complete Step-by-Step Example
 
-Here's a complete example evaluating chunk strategies with baselines:
+Here's a complete example following the two-phase workflow:
 
-### 1. Initial Setup (One-time)
+### Initial Setup (One-time)
 
 ```bash
 # Prepare data
@@ -404,28 +602,57 @@ python indexing.py \
     --index_name haifa-rag
 ```
 
-### 2. Run Evaluation
+### Phase 1: Find Best Configuration
 
 ```bash
-# Evaluate chunking strategies with baselines
+# Step 1.1: Test strategies
+python evaluation/generate_evaluation_results.py \
+    --strategies baseline sentence adaptive \
+    --top_k 5 \
+    --testset_file tests/embedding_testset.json
+
+# Step 1.2: Test chunk configurations (optional)
+python evaluation/evaluate_chunk_configurations.py \
+    --input_json scrape_and_prepare_data/haifa_scraped.json \
+    --configs evaluation/chunk_configs.json \
+    --testset_file tests/embedding_testset.json
+
+# Step 1.3: Test K values
+for k in 3 5 10; do
+    python evaluation/generate_evaluation_results.py \
+        --strategies adaptive \
+        --top_k $k \
+        --testset_file tests/embedding_testset.json \
+        --output_dir evaluation/results_k${k}
+done
+
+# Step 1.4: Compare against baselines
 python evaluation/generate_evaluation_results.py \
     --strategies baseline sentence adaptive \
     --top_k 5 \
     --include_baselines \
     --testset_file tests/embedding_testset.json
+
+# Step 1.5: Analyze and select best configuration
+jupyter notebook evaluation/analyze_evaluation_results.ipynb
+# Review results and document: best_strategy, best_chunk_config, best_k
 ```
 
-### 3. Analyze Results
+### Phase 2: Test Query Enrichment & Reranking
 
 ```bash
-# View quantitative report
-cat evaluation/evaluation_results/quantitative_analysis_report.md
+# Step 2.1: Run enrichment/reranking evaluation
+# (Using best config from Phase 1: adaptive strategy, K=5)
+python evaluation/run_llm_judge_evaluation.py \
+    --testset_file tests/embedding_testset.json \
+    --output_dir evaluation/llm_judge_results \
+    --strategies adaptive \
+    --top_k 5 \
+    --test_enrichment_reranking \
+    --baseline_strategy adaptive
 
-# Check improvements over baselines
-cat evaluation/evaluation_results/improvements_over_baselines.csv
-
-# Open notebook for visualizations
-jupyter notebook evaluation/analyze_evaluation_results.ipynb
+# Step 2.2: Analyze results
+cat evaluation/llm_judge_results/enrichment_reranking_comparison.csv
 ```
 
 ---
@@ -489,19 +716,21 @@ jupyter notebook evaluation/analyze_evaluation_results.ipynb
 
 ## Tips for Effective Evaluation
 
-1. **Start with Strategies**: First find the best chunking strategy
-2. **Then Test Configurations**: Find optimal chunk size/overlap
-3. **Refine Top-K**: Determine best number of chunks to retrieve
-4. **Validate with Baselines**: Demonstrate improvements quantitatively
-5. **Use Testset When Available**: Enables precision/recall metrics
+### Phase 1 Best Practices
 
-### Best Practices
+1. **Follow the Steps in Order**: Test strategies → chunk configs → K values → baselines
+2. **Use Ground Truth**: Always use `tests/embedding_testset.json` for robust metrics
+3. **Include Baselines**: Essential for demonstrating system effectiveness
+4. **Test Multiple K Values**: Different queries may need different numbers of chunks
+5. **Compare Systematically**: Use the same queries for fair comparison
+6. **Document Your Results**: Keep track of what you tested and the results
 
-- **Use Ground Truth**: Always prefer `tests/embedding_testset.json` for robust metrics
-- **Include Baselines**: Essential for demonstrating system effectiveness
-- **Test Multiple K Values**: Different queries may need different numbers of chunks
-- **Compare Systematically**: Use the same queries for fair comparison
-- **Document Your Configurations**: Keep track of what you tested
+### Phase 2 Best Practices
+
+1. **Use Your Best Config**: Only test enrichment/reranking on your best Phase 1 configuration
+2. **Consider Cost vs. Benefit**: Enrichment and reranking add API calls (cost and latency)
+3. **Test on Best K Value**: Reranking is more effective with more candidates (higher top_k)
+4. **Make Informed Decisions**: Compare improvements against added cost/latency
 
 ---
 
@@ -535,36 +764,65 @@ python evaluation/generate_evaluation_results.py
 
 ## Summary: Quick Reference
 
-### Evaluate Strategies Only
+### Phase 1: Find Best Configuration
+
+**Test Strategies:**
 ```bash
 python evaluation/generate_evaluation_results.py \
-    --strategies baseline sentence adaptive
+    --strategies baseline sentence adaptive \
+    --top_k 5 \
+    --testset_file tests/embedding_testset.json
 ```
 
-### Evaluate Chunk Configurations
+**Test Chunk Configurations:**
 ```bash
 python evaluation/evaluate_chunk_configurations.py \
     --input_json scrape_and_prepare_data/haifa_scraped.json \
-    --configs evaluation/chunk_configs.json
+    --configs evaluation/chunk_configs.json \
+    --testset_file tests/embedding_testset.json
 ```
 
-### Evaluate with Baselines
-```bash
-python evaluation/generate_evaluation_results.py \
-    --include_baselines
-```
-
-### Evaluate Different K Values
+**Test K Values:**
 ```bash
 for k in 3 5 10; do
     python evaluation/generate_evaluation_results.py \
+        --strategies adaptive \
         --top_k $k \
+        --testset_file tests/embedding_testset.json \
         --output_dir "evaluation/results_k${k}"
 done
 ```
 
-### Visualize Results
+**Compare Against Baselines:**
+```bash
+python evaluation/generate_evaluation_results.py \
+    --strategies baseline sentence adaptive \
+    --top_k 5 \
+    --include_baselines \
+    --testset_file tests/embedding_testset.json
+```
+
+**Analyze Results:**
 ```bash
 jupyter notebook evaluation/analyze_evaluation_results.ipynb
+```
+
+### Phase 2: Test Query Enrichment & Reranking
+
+**Run Enrichment/Reranking Evaluation:**
+```bash
+# Use your best config from Phase 1
+python evaluation/run_llm_judge_evaluation.py \
+    --testset_file tests/embedding_testset.json \
+    --output_dir evaluation/llm_judge_results \
+    --strategies <your_best_strategy> \
+    --top_k <your_best_k> \
+    --test_enrichment_reranking \
+    --baseline_strategy <your_best_strategy>
+```
+
+**Review Results:**
+```bash
+cat evaluation/llm_judge_results/enrichment_reranking_comparison.csv
 ```
 

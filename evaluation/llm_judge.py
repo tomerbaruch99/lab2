@@ -7,6 +7,7 @@ with multiple quality metrics.
 """
 
 import json
+import re
 from typing import Dict
 
 from gemini_integration import call_gemini
@@ -45,7 +46,9 @@ def build_judge_prompt(question: str, gold_answer: str, rag_answer: str) -> str:
 4. conciseness - עד כמה התשובה ברורה ולא מיותרת?
 5. overall - ציון כולל כללי.
 
-החזר JSON בלבד בפורמט:
+חשוב: החזר רק JSON, ללא טקסט נוסף לפני או אחרי.
+
+הפורמט הנדרש:
 {{
   "correctness": <float>,
   "faithfulness": <float>,
@@ -76,19 +79,80 @@ def judge_answer(
         conciseness, and overall (all 0.0-1.0)
     """
     prompt = build_judge_prompt(question, gold_answer, rag_answer)
+    
+    # Debug: Print a sample to see what we're sending (first query only)
+    import os
+    if not hasattr(judge_answer, '_debug_printed'):
+        print(f"[DEBUG] Sample judge prompt (first query):\n{prompt[:500]}...")
+        judge_answer._debug_printed = True
+    
     resp = call_gemini(gemini_model, prompt)
     
-    try:
-        data = json.loads(resp)
+    # Check if response is empty
+    if not resp or not resp.strip():
+        print(f"[WARN] LLM judge returned empty response for query: {question[:50]}...")
         return {
+            "correctness": 0.0,
+            "faithfulness": 0.0,
+            "completeness": 0.0,
+            "conciseness": 0.0,
+            "overall": 0.0,
+        }
+    
+    # Try to extract JSON from response (in case Gemini adds explanatory text)
+    resp_clean = resp.strip()
+    
+    # Try to find JSON object in the response (handle nested objects)
+    # Look for the first { and matching } that contains our expected fields
+    start_idx = resp_clean.find('{')
+    if start_idx != -1:
+        # Find matching closing brace by counting braces
+        brace_count = 0
+        end_idx = start_idx
+        for i in range(start_idx, len(resp_clean)):
+            if resp_clean[i] == '{':
+                brace_count += 1
+            elif resp_clean[i] == '}':
+                brace_count -= 1
+                if brace_count == 0:
+                    end_idx = i + 1
+                    break
+        if end_idx > start_idx:
+            resp_clean = resp_clean[start_idx:end_idx]
+    
+    try:
+        data = json.loads(resp_clean)
+        # Validate that we got the expected fields
+        result = {
             "correctness": float(data.get("correctness", 0.0)),
             "faithfulness": float(data.get("faithfulness", 0.0)),
             "completeness": float(data.get("completeness", 0.0)),
             "conciseness": float(data.get("conciseness", 0.0)),
             "overall": float(data.get("overall", 0.0)),
         }
+        # Check if all scores are 0 (might indicate parsing issue)
+        if all(v == 0.0 for v in result.values()):
+            resp_preview = resp[:500] if len(resp) > 500 else resp
+            print(f"[WARN] LLM judge returned all zeros for query: {question[:50]}...")
+            print(f"[WARN] Judge response: {resp_preview}")
+            print(f"[WARN] Parsed data: {data}")
+        return result
+    except json.JSONDecodeError as e:
+        # Log the actual response for debugging (truncated if too long)
+        resp_preview = resp[:500] if len(resp) > 500 else resp
+        print(f"[WARN] LLM judge JSON parsing error: {e}")
+        print(f"[WARN] Full response: {resp_preview}")
+        print(f"[WARN] Cleaned response: {resp_clean[:500] if len(resp_clean) > 500 else resp_clean}")
+        return {
+            "correctness": 0.0,
+            "faithfulness": 0.0,
+            "completeness": 0.0,
+            "conciseness": 0.0,
+            "overall": 0.0,
+        }
     except Exception as e:
-        print(f"[WARN] LLM judge parsing error: {e}")
+        print(f"[WARN] LLM judge error: {e}")
+        print(f"[WARN] Response: {resp[:300] if len(resp) > 300 else resp}")
         return {
             "correctness": 0.0,
             "faithfulness": 0.0,

@@ -476,6 +476,7 @@ def split_to_paragraphs(text: str) -> List[str]:
 
 # 1. BASELINE --------------------------------------------------
 def chunk_baseline(text: str, max_chars: int, overlap: int) -> List[str]:
+    """Fixed-size chunks with overlap"""
     text = text.strip()
     if not text:
         return []
@@ -493,6 +494,7 @@ def chunk_baseline(text: str, max_chars: int, overlap: int) -> List[str]:
 
 # 2. SENTENCE --------------------------------------------------
 def chunk_by_sentences(text: str, max_chars: int) -> List[str]:
+    """Chunk text into sentences, grouping sentences until max_chars is reached"""
     sents = split_to_sentences(text)
     if not sents:
         return []
@@ -512,6 +514,7 @@ def chunk_by_sentences(text: str, max_chars: int) -> List[str]:
 
 # INTERNAL SUB-STRATEGIES FOR ADAPTIVE -------------------------
 def chunk_by_paragraphs(text: str, max_chars: int) -> List[str]:
+    """Chunk text into paragraphs, grouping paragraphs until max_chars is reached"""
     paras = split_to_paragraphs(text)
     if not paras:
         return []
@@ -534,7 +537,7 @@ def chunk_event(text: str, max_chars: int) -> List[str]:
 
 
 def chunk_hierarchical(text: str, max_chars: int) -> List[str]:
-    """Simple heading-based segmentation for PDFs."""
+    """Simple heading-based segmentation for PDFs"""
     lines = [ln.strip() for ln in text.split("\n") if ln.strip()]
     if not lines:
         return []

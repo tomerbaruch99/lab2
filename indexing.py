@@ -20,7 +20,7 @@ Usage:
         --api_keys_path api_keys.json \
         --embedding_model paraphrase-multilingual-MiniLM-L12-v2 \
         --index_name haifa-municipality-rag \
-        --batch_size 32
+        --batch_size 64
 """
 
 import os
