@@ -51,4 +51,3 @@ The script generates chunks using three strategies:
 - **adaptive**: Dynamic strategy selection based on document type
 
 All strategies are included in the output file, identified by the `chunking_strategy` field.
-

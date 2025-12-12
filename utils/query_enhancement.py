@@ -206,4 +206,3 @@ def rerank_chunks(question: str, chunks: List[Dict], top_k: int, gemini_model) -
     # Map back to chunks (1-based -> 0-based)
     ordered_chunks = [chunks[i - 1] for i in ordered[:top_k]]
     return ordered_chunks
-

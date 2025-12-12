@@ -25,10 +25,10 @@ def test_judge():
         print(f"[OK] Model initialized: {DEFAULT_LLM_JUDGE_MODEL}\n")
     except Exception as e:
         print(f"[ERROR] Failed to initialize model: {e}")
-        print(f"[INFO] Trying alternative model: gemini-2.0-flash")
+        print(f"[INFO] Trying alternative model: gemini-2.0-pro")
         try:
-            gemini_model = init_gemini(api_keys, "gemini-2.0-flash")
-            print(f"[OK] Model initialized: gemini-2.0-flash\n")
+            gemini_model = init_gemini(api_keys, "gemini-2.0-pro")
+            print(f"[OK] Model initialized: gemini-2.0-pro\n")
         except Exception as e2:
             print(f"[ERROR] Failed with alternative model too: {e2}")
             return
@@ -69,4 +69,3 @@ def test_judge():
 
 if __name__ == "__main__":
     test_judge()
-

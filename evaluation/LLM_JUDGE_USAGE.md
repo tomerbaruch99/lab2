@@ -188,4 +188,3 @@ jupyter notebook evaluation/analyze_evaluation_results.ipynb
 - **`llm_judge.py`**: Utility for answer quality evaluation
 - **`run_llm_judge_evaluation.py`**: New script that integrates LLM judging with the testset
 - **`embedding_testset.json`**: Works for both evaluation types (retrieval and answer quality)
-

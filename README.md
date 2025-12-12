@@ -54,6 +54,17 @@ python evaluation/analyze_results.py
 ```
 Compare chunking strategies and analyze performance. See `evaluation/README.md` for details.
 
+### Examples
+See the `examples/` folder for detailed usage examples:
+- `example_retriever_usage.py` - Basic retrieval examples
+- `example_prompt_builder.py` - Prompt building examples
+- `example_gemini_rag.py` - Complete RAG pipeline
+- `example_smart_page_finder.py` - Smart Page Finder usage
+- `example_retrieval_diagnostics.py` - Retrieval diagnostics
+- `example_chatbot_integration.py` - Chatbot integration
+
+See `examples/README.md` for detailed descriptions and usage instructions.
+
 ### Learn More
 See the main components (`retriever.py`, `gemini_integration.py`, `chatbot.py`) for usage examples.
 
@@ -127,6 +138,7 @@ project/
 ├── gemini_integration.py    # Complete RAG system
 ├── confidence_meter.py      # Answer confidence scoring
 ├── chatbot.py               # Streamlit web UI
+├── examples/                # Usage examples (see README.md)
 ├── evaluation/              # Evaluation scripts (see README.md)
 └── utils/                   # Utilities (see README.md)
 ```
@@ -142,6 +154,7 @@ project/
 
 ## Documentation
 
+- **Examples**: See `examples/README.md` for usage examples and code samples
 - **Data Preparation**: See `scrape_and_prepare_data/README.md`
 - **Evaluation**: See `evaluation/README.md`
 - **Utilities**: See `utils/README.md`

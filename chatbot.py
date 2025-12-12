@@ -5,7 +5,7 @@ Haifa Municipality RAG Chatbot
 A Streamlit-based web interface for the Haifa Municipality RAG system.
 This chatbot provides an interactive Hebrew (RTL) interface where users can:
 - Ask questions about municipal services, regulations, and information
-- Receive RAG-powered answers using Gemini 2.5 Flash
+- Receive RAG-powered answers using Gemini 3 Pro (default: gemini-3-pro-preview)
 - View answer confidence scores with visual indicators
 - Get automatic page recommendations from the official Haifa website
 - Maintain conversation history and export chat logs

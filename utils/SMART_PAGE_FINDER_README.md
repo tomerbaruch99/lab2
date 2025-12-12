@@ -52,4 +52,6 @@ formatted = finder.format_results(results, include_scores=False)
 
 ## Integration
 
-See `utils/smart_page_finder.py` for the implementation and `chatbot.py` for usage examples.
+See `utils/smart_page_finder.py` for the implementation. For usage examples, see:
+- `examples/example_smart_page_finder.py` - Standalone usage examples
+- `chatbot.py` - Integration in the web UI

@@ -46,6 +46,16 @@ project/
 │   ├── api_keys.json                # API keys (create this file)
 │   └── README.md                    # Utilities documentation
 │
+├── examples/                        # Usage examples
+│   ├── example_retriever_usage.py   # Basic retrieval examples
+│   ├── example_prompt_builder.py    # Prompt building examples
+│   ├── example_gemini_rag.py        # Complete RAG pipeline
+│   ├── example_smart_page_finder.py # Smart Page Finder usage
+│   ├── example_retrieval_diagnostics.py # Retrieval diagnostics
+│   ├── example_chatbot_integration.py   # Chatbot integration
+│   ├── test_gemini_call.py          # Simple Gemini API test
+│   └── README.md                    # Examples documentation
+│
 ├── tests/                           # Test data
 │   └── embedding_testset.json       # Test set with ground truth labels
 │

@@ -15,7 +15,6 @@ check_pinecone_links.py
 utils/compare_chunk_configs.py
 utils/compare_embedding_models.py
 utils/recreate_index.py
-examples/
 
 # ignore large files
 scrape_and_prepare_data/haifa_scraped.json
@@ -23,3 +22,4 @@ scrape_and_prepare_data/haifa_scraped.json
 *.csv
 *.json
 *.pdf
+

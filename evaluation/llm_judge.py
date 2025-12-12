@@ -160,4 +160,3 @@ def judge_answer(
             "conciseness": 0.0,
             "overall": 0.0,
         }
-

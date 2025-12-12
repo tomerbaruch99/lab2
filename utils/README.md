@@ -37,3 +37,12 @@ Shared utility modules for the RAG system.
   - Must contain `PINECONE_API_KEY` and `GEMINI_API_KEY`
   - See main README for format
 
+## Usage Examples
+
+For detailed usage examples of these utilities, see:
+- `examples/example_retriever_usage.py` - Using retriever and embedding models
+- `examples/example_prompt_builder.py` - Prompt building examples
+- `examples/example_smart_page_finder.py` - Smart Page Finder usage
+- `examples/example_gemini_rag.py` - Complete RAG pipeline with query enhancement
+
+See `examples/README.md` for a complete list of examples.

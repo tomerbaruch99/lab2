@@ -5,7 +5,7 @@ Gemini Integration for Haifa Municipality RAG
 This module wires together:
   - Retriever (Pinecone + embeddings)
   - PromptBuilder
-  - Gemini 2.5 Flash
+  - Gemini 3 Pro (default: gemini-3-pro-preview)
 
 Changes vs older version:
   - No file_type / PDF filtering logic (we now use doc_type + namespace instead)
@@ -200,7 +200,7 @@ class GeminiRAG:
 
       - Retriever (with automatic namespace detection)
       - PromptBuilder
-      - Gemini 2.5 Flash
+      - Gemini 3 Pro (default: gemini-3-pro-preview)
     """
 
     def __init__(
