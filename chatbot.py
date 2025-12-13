@@ -255,8 +255,8 @@ with st.form("chat_form", clear_on_submit=True):
                 # Display loading spinner while processing
                 with st.spinner("מחפש מידע ומכין תשובה..."):
                     # Get answer from RAG system
-                    # top_k=5 retrieves 5 most relevant chunks for context
-                    res = rag.answer_question(user_input, top_k=5)
+                    # top_k=3 retrieves 3 most relevant chunks for context (best performing config)
+                    res = rag.answer_question(user_input, top_k=3)
                     answer = res["answer"]
                     confidence = res.get("confidence", {})
 

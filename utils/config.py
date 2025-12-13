@@ -26,7 +26,7 @@ DEFAULT_GEMINI_MODEL = "gemini-3-pro-preview"  # Default for RAG answer generati
 DEFAULT_LLM_JUDGE_MODEL = "gemini-2.5-pro"  # Default for LLM-as-a-judge evaluation
 
 # Retrieval defaults
-DEFAULT_TOP_K = 5
+DEFAULT_TOP_K = 3  # Best performing configuration: small chunks with k=3
 
 # ============================================================
 # Gemini API Configuration
