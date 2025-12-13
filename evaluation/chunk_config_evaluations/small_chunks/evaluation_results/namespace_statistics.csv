@@ -1,0 +1,16 @@
+expected_namespace,strategy,accuracy,count
+arnona,adaptive,1.0,5
+arnona,baseline,1.0,5
+arnona,sentence,1.0,5
+culture,adaptive,1.0,1
+culture,baseline,1.0,1
+culture,sentence,1.0,1
+general,adaptive,1.0,11
+general,baseline,1.0,11
+general,sentence,1.0,11
+parking,adaptive,1.0,2
+parking,baseline,1.0,2
+parking,sentence,1.0,2
+water,adaptive,1.0,1
+water,baseline,1.0,1
+water,sentence,1.0,1

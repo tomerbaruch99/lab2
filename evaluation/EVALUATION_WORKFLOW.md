@@ -311,7 +311,7 @@ python evaluation/generate_evaluation_results.py \
 Create `evaluation/test_top_k.sh`:
 
 ```bash
-for k in 3 5 10 15; do
+for k in 3 5 10; do
     echo "Testing top_k=$k"
     python evaluation/generate_evaluation_results.py \
         --strategies adaptive \
@@ -348,7 +348,7 @@ pip install scikit-learn>=1.0.0
 ```bash
 python evaluation/generate_evaluation_results.py \
     --strategies baseline sentence adaptive \
-    --top_k 5 \
+    --top_k 3 \
     --include_baselines \
     --testset_file tests/embedding_testset.json
 ```
@@ -470,7 +470,8 @@ python evaluation/run_llm_judge_evaluation.py \
     --testset_file tests/embedding_testset.json \
     --output_dir evaluation/llm_judge_results \
     --strategies adaptive \
-    --top_k 5 \
+    --top_k 3 \
+    --index_name haifa-municipality-rag-small-chunks \
     --test_enrichment_reranking \
     --baseline_strategy adaptive  # Use your best performing strategy from Phase 1
 ```

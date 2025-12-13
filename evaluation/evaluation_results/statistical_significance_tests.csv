@@ -1,0 +1,4 @@
+strategy1,strategy2,metric,mean1,mean2,mean_difference,t_statistic,p_value,significant,interpretation,n_samples
+baseline,baseline_keyword,avg_score,0.2982,0.0,0.2982,9.8009,0.0,True,"Significant difference (p=0.0000, α=0.05)",20
+sentence,baseline_keyword,avg_score,0.4312,0.0,0.4312,15.9697,0.0,True,"Significant difference (p=0.0000, α=0.05)",20
+adaptive,baseline_keyword,avg_score,0.5259,0.0,0.5259,18.8634,0.0,True,"Significant difference (p=0.0000, α=0.05)",20

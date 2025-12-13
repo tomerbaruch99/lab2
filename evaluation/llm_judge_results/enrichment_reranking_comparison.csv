@@ -1,0 +1,16 @@
+config,baseline_config,metric,mean_improvement,median_improvement,better_count,total_count,proportion_better
+adaptive_enrichment_only,adaptive_baseline,correctness,0.105,0.05,10,20,0.5
+adaptive_enrichment_only,adaptive_baseline,faithfulness,-0.16,0.0,2,20,0.1
+adaptive_enrichment_only,adaptive_baseline,completeness,0.035,0.0,4,20,0.2
+adaptive_enrichment_only,adaptive_baseline,conciseness,-0.245,-0.25,2,20,0.1
+adaptive_enrichment_only,adaptive_baseline,overall,0.065,0.0,9,20,0.45
+adaptive_reranking_only,adaptive_baseline,correctness,0.095,0.0,4,20,0.2
+adaptive_reranking_only,adaptive_baseline,faithfulness,-0.215,0.0,2,20,0.1
+adaptive_reranking_only,adaptive_baseline,completeness,-0.015,0.0,0,20,0.0
+adaptive_reranking_only,adaptive_baseline,conciseness,-0.065,0.0,2,20,0.1
+adaptive_reranking_only,adaptive_baseline,overall,-0.01,0.0,1,20,0.05
+adaptive_both,adaptive_baseline,correctness,0.21,0.0,9,20,0.45
+adaptive_both,adaptive_baseline,faithfulness,-0.15,0.0,4,20,0.2
+adaptive_both,adaptive_baseline,completeness,0.055,0.0,4,20,0.2
+adaptive_both,adaptive_baseline,conciseness,-0.175,-0.2,3,20,0.15
+adaptive_both,adaptive_baseline,overall,0.085,0.0,7,20,0.35

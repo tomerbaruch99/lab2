@@ -19,7 +19,5 @@ utils/recreate_index.py
 # ignore large files
 scrape_and_prepare_data/haifa_scraped.json
 *.parquet
-*.csv
-*.json
 *.pdf
 

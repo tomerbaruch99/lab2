@@ -1,0 +1,6 @@
+expected_namespace,strategy,accuracy,count
+arnona,adaptive,1.0,5
+culture,adaptive,1.0,1
+general,adaptive,1.0,11
+parking,adaptive,1.0,2
+water,adaptive,1.0,1

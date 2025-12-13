@@ -1,0 +1,7 @@
+main_strategy,baseline_strategy,mean_improvement_pct,median_improvement_pct,std_improvement_pct,queries_better,queries_worse,queries_equal,total_queries,proportion_better_pct
+baseline,baseline_tfidf,,,,20,0,0,20,100.0
+baseline,baseline_keyword,,,,20,0,0,20,100.0
+sentence,baseline_tfidf,,,,20,0,0,20,100.0
+sentence,baseline_keyword,,,,20,0,0,20,100.0
+adaptive,baseline_tfidf,,,,20,0,0,20,100.0
+adaptive,baseline_keyword,,,,20,0,0,20,100.0

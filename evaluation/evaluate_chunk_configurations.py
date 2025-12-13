@@ -503,12 +503,19 @@ def main():
             else:
                 # Skip preparation step - locate existing prepared parquet file
                 # Useful when re-running evaluations without regenerating data
-                config_dir = output_base / config_name
-                parquet_files = list(config_dir.glob("**/*.parquet"))
-                if not parquet_files:
-                    raise FileNotFoundError(f"No parquet file found for {config_name}")
-                parquet_file = str(parquet_files[0])
-                print(f"[INFO] Using existing prepared file: {parquet_file}")
+                # Only needed if we're going to index (not needed if skip_indexing is also set)
+                if not args.skip_indexing:
+                    config_dir = output_base / config_name
+                    parquet_files = list(config_dir.glob("**/*.parquet"))
+                    if not parquet_files:
+                        raise FileNotFoundError(f"No parquet file found for {config_name}")
+                    parquet_file = str(parquet_files[0])
+                    print(f"[INFO] Using existing prepared file: {parquet_file}")
+                else:
+                    # Both skip_preparation and skip_indexing are set
+                    # Parquet file not needed since we're only running evaluation
+                    parquet_file = None
+                    print(f"[INFO] Skipping preparation and indexing - parquet file not required")
             
             # Step 2: Index the prepared data into Pinecone
             # Creates a vector index that can be queried for retrieval evaluation

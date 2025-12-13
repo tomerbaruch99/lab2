@@ -1,0 +1,9 @@
+strategy,score_category,count,total,proportion
+adaptive,Good (0.6-0.8),7,20,35.0
+adaptive,Moderate (0.4-0.6),8,20,40.0
+adaptive,Poor (<0.4),5,20,25.0
+baseline,Moderate (0.4-0.6),1,20,5.0
+baseline,Poor (<0.4),19,20,95.0
+sentence,Good (0.6-0.8),1,20,5.0
+sentence,Moderate (0.4-0.6),8,20,40.0
+sentence,Poor (<0.4),11,20,55.0

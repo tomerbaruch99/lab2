@@ -1,0 +1,2 @@
+strategy,avg_score_mean,avg_score_std,avg_score_min,avg_score_max,max_score_mean,max_score_std,namespace_correct_mean,num_results_mean,unique_docs_mean,precision_mean,precision_std,recall_mean,recall_std,accuracy_mean,accuracy_std
+adaptive,0.503,0.1347,0.2281,0.6748,0.5443,0.1179,1.0,10.0,6.2,0.06,0.1188,0.2,0.3959,0.06,0.1188

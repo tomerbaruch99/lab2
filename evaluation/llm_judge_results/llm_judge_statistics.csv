@@ -1,0 +1,5 @@
+config,correctness_mean,correctness_std,faithfulness_mean,faithfulness_std,completeness_mean,completeness_std,conciseness_mean,conciseness_std,overall_mean,overall_std
+adaptive_baseline,0.085,0.254,0.38,0.4764,0.03,0.0923,0.885,0.2455,0.025,0.091
+adaptive_both,0.295,0.39,0.23,0.3614,0.085,0.1843,0.71,0.3024,0.11,0.2024
+adaptive_enrichment_only,0.19,0.29,0.22,0.3792,0.065,0.1348,0.64,0.3102,0.09,0.1518
+adaptive_reranking_only,0.18,0.3665,0.165,0.366,0.015,0.0489,0.82,0.2949,0.015,0.0489
