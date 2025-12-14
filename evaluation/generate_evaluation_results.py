@@ -254,6 +254,10 @@ def evaluate_retrieval(
     finally:
         sys.stdout = old_stdout
     
+    # If expected_namespace is not provided, infer it from the query
+    if not expected_namespace:
+        expected_namespace = detect_namespace(query)
+    
     if not chunks:
         return {
             "avg_score": 0.0,
@@ -263,6 +267,7 @@ def evaluate_retrieval(
             "num_results": 0,
             "detected_namespace": "none",
             "namespace_correct": False,
+            "expected_namespace": expected_namespace,
             "doc_types": {},
             "namespaces": {},
             "unique_docs": 0,
@@ -283,10 +288,6 @@ def evaluate_retrieval(
         namespace_dist[ns] += 1
     
     unique_docs = len(set(chunk.get("doc_id", "") for chunk in chunks))
-    
-    # If expected_namespace is not provided, infer it from the query
-    if not expected_namespace:
-        expected_namespace = detect_namespace(query)
     
     namespace_correct = detected_namespace == expected_namespace
     
@@ -367,6 +368,10 @@ def evaluate_baseline(
     finally:
         sys.stdout = old_stdout
     
+    # If expected_namespace is not provided, infer it from the query
+    if not expected_namespace:
+        expected_namespace = detect_namespace(query)
+    
     if not chunks:
         return {
             "avg_score": 0.0,
@@ -376,6 +381,7 @@ def evaluate_baseline(
             "num_results": 0,
             "detected_namespace": "none",
             "namespace_correct": False,
+            "expected_namespace": expected_namespace,
             "doc_types": {},
             "namespaces": {},
             "unique_docs": 0,
@@ -400,10 +406,6 @@ def evaluate_baseline(
         namespace_dist[ns] += 1
     
     unique_docs = len(set(chunk.get("doc_id", "") for chunk in chunks))
-    
-    # If expected_namespace is not provided, infer it from the query
-    if not expected_namespace:
-        expected_namespace = detect_namespace(query)
     
     namespace_correct = detected_namespace == expected_namespace
     
@@ -451,14 +453,22 @@ def compare_strategies(
     if include_baselines and BASELINES_AVAILABLE:
         print("\n[INFO] Initializing baseline methods...")
         try:
-            baseline_retrievers["tfidf"] = TfIdfBaselineRetriever(api_keys_path=api_keys_path)
-            print("[OK] TF-IDF baseline ready")
+            tfidf_retriever = TfIdfBaselineRetriever(api_keys_path=api_keys_path)
+            if hasattr(tfidf_retriever, 'documents') and len(tfidf_retriever.documents) > 0:
+                baseline_retrievers["tfidf"] = tfidf_retriever
+                print(f"[OK] TF-IDF baseline ready ({len(tfidf_retriever.documents)} documents)")
+            else:
+                print("[WARN] TF-IDF baseline unavailable: No documents loaded. Missing data file: scrape_and_prepare_data/haifa_prepared_data/haifa_rag_chunks.parquet")
         except Exception as e:
             print(f"[WARN] TF-IDF baseline unavailable: {e}")
         
         try:
-            baseline_retrievers["keyword"] = KeywordMatchingBaseline()
-            print("[OK] Keyword matching baseline ready")
+            keyword_retriever = KeywordMatchingBaseline()
+            if hasattr(keyword_retriever, 'documents') and len(keyword_retriever.documents) > 0:
+                baseline_retrievers["keyword"] = keyword_retriever
+                print(f"[OK] Keyword matching baseline ready ({len(keyword_retriever.documents)} documents)")
+            else:
+                print("[WARN] Keyword baseline unavailable: No documents loaded. Missing data file: scrape_and_prepare_data/haifa_prepared_data/haifa_rag_chunks.parquet")
         except Exception as e:
             print(f"[WARN] Keyword baseline unavailable: {e}")
         
@@ -467,6 +477,17 @@ def compare_strategies(
             print("[OK] Retrieval-only baseline ready")
         except Exception as e:
             print(f"[WARN] Retrieval-only baseline unavailable: {e}")
+        
+        if len(baseline_retrievers) == 0:
+            print("\n[ERROR] No baseline methods available!")
+            print("[INFO] To enable baseline methods, you need to generate the data file:")
+            print("       1. Ensure you have scrape_and_prepare_data/haifa_scraped.json")
+            print("       2. Run: python scrape_and_prepare_data/data_preparation.py \\")
+            print("              --input_json scrape_and_prepare_data/haifa_scraped.json \\")
+            print("              --out_dir scrape_and_prepare_data/haifa_prepared_data \\")
+            print("              --chunk_chars 1000 --chunk_overlap 200")
+            print("       3. This will create: scrape_and_prepare_data/haifa_prepared_data/haifa_rag_chunks.parquet")
+            print("\n[INFO] Continuing evaluation without baseline methods...")
     
     print(f"\n[EVALUATION] Testing {len(queries)} queries across {len(strategies)} strategies...")
     if include_baselines:
@@ -694,8 +715,13 @@ def compute_improvement_over_baseline(
             
             # Align by query (assuming same queries tested for both)
             if len(main_scores) == len(baseline_scores):
-                improvements_raw = ((main_scores - baseline_scores) / baseline_scores * 100)
-                improvements_raw = np.where(baseline_scores == 0, np.nan, improvements_raw)
+                # Avoid division by zero - set to NaN where baseline is 0
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    improvements_raw = np.where(
+                        baseline_scores != 0,
+                        ((main_scores - baseline_scores) / baseline_scores * 100),
+                        np.nan
+                    )
                 
                 mean_improvement = np.nanmean(improvements_raw)
                 median_improvement = np.nanmedian(improvements_raw)
@@ -810,12 +836,15 @@ def compute_comparative_statistics(df: pd.DataFrame) -> Dict[str, Any]:
     
     # Best strategy by average score
     if len(strategy_stats) > 0:
-        best_strategy = strategy_stats.loc[strategy_stats["avg_score_mean"].idxmax()]
-        results["best_strategy"] = {
-            "strategy": best_strategy["strategy"],
-            "avg_score": best_strategy["avg_score_mean"],
-            "std_score": best_strategy.get("avg_score_std", 0),
-        }
+        # Filter out NaN values before finding max
+        valid_stats = strategy_stats[strategy_stats["avg_score_mean"].notna()]
+        if len(valid_stats) > 0:
+            best_strategy = valid_stats.loc[valid_stats["avg_score_mean"].idxmax()]
+            results["best_strategy"] = {
+                "strategy": best_strategy["strategy"],
+                "avg_score": best_strategy["avg_score_mean"],
+                "std_score": best_strategy.get("avg_score_std", 0),
+            }
     
     # Improvement over baselines
     if baseline_strategies and main_strategies:
@@ -829,13 +858,17 @@ def compute_comparative_statistics(df: pd.DataFrame) -> Dict[str, Any]:
         for main_strat in main_strategies:
             main_impr = improvements[improvements["main_strategy"] == main_strat]
             if len(main_impr) > 0:
-                best_impr = main_impr.loc[main_impr["mean_improvement_pct"].idxmax()]
-                best_improvements.append({
-                    "strategy": main_strat,
-                    "vs_baseline": best_impr["baseline_strategy"],
-                    "improvement_pct": best_impr["mean_improvement_pct"],
-                    "proportion_better_pct": best_impr["proportion_better_pct"],
-                })
+                # Filter out rows with NaN mean_improvement_pct before finding max
+                valid_impr = main_impr[main_impr["mean_improvement_pct"].notna()]
+                if len(valid_impr) > 0:
+                    best_impr = valid_impr.loc[valid_impr["mean_improvement_pct"].idxmax()]
+                    best_improvements.append({
+                        "strategy": main_strat,
+                        "vs_baseline": best_impr["baseline_strategy"],
+                        "improvement_pct": best_impr["mean_improvement_pct"],
+                        "proportion_better_pct": best_impr["proportion_better_pct"],
+                    })
+                # If all improvements are NaN, skip this strategy
         results["best_improvements"] = best_improvements
     
     # Score distribution
@@ -847,16 +880,23 @@ def compute_comparative_statistics(df: pd.DataFrame) -> Dict[str, Any]:
         # Find best baseline
         baseline_stats = strategy_stats[strategy_stats["strategy"].isin(baseline_strategies)]
         if len(baseline_stats) > 0:
-            best_baseline = baseline_stats.loc[baseline_stats["avg_score_mean"].idxmax()]
-            best_baseline_name = best_baseline["strategy"]
+            # Filter out NaN values before finding max
+            valid_baseline_stats = baseline_stats[baseline_stats["avg_score_mean"].notna()]
+            if len(valid_baseline_stats) > 0:
+                best_baseline = valid_baseline_stats.loc[valid_baseline_stats["avg_score_mean"].idxmax()]
+                best_baseline_name = best_baseline["strategy"]
+            else:
+                # If all baselines have NaN scores, skip significance tests
+                best_baseline_name = None
             
-            significance_tests = []
-            for main_strat in main_strategies:
-                test_result = statistical_significance_test(
-                    df, main_strat, best_baseline_name
-                )
-                significance_tests.append(test_result)
-            results["significance_tests_vs_best_baseline"] = significance_tests
+            if best_baseline_name is not None:
+                significance_tests = []
+                for main_strat in main_strategies:
+                    test_result = statistical_significance_test(
+                        df, main_strat, best_baseline_name
+                    )
+                    significance_tests.append(test_result)
+                results["significance_tests_vs_best_baseline"] = significance_tests
     
     return results
 
