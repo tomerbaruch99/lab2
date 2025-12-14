@@ -254,6 +254,10 @@ def evaluate_retrieval(
     finally:
         sys.stdout = old_stdout
     
+    # If expected_namespace is not provided, infer it from the query
+    if not expected_namespace:
+        expected_namespace = detect_namespace(query)
+    
     if not chunks:
         return {
             "avg_score": 0.0,
@@ -263,6 +267,7 @@ def evaluate_retrieval(
             "num_results": 0,
             "detected_namespace": "none",
             "namespace_correct": False,
+            "expected_namespace": expected_namespace,
             "doc_types": {},
             "namespaces": {},
             "unique_docs": 0,
@@ -283,10 +288,6 @@ def evaluate_retrieval(
         namespace_dist[ns] += 1
     
     unique_docs = len(set(chunk.get("doc_id", "") for chunk in chunks))
-    
-    # If expected_namespace is not provided, infer it from the query
-    if not expected_namespace:
-        expected_namespace = detect_namespace(query)
     
     namespace_correct = detected_namespace == expected_namespace
     
@@ -367,6 +368,10 @@ def evaluate_baseline(
     finally:
         sys.stdout = old_stdout
     
+    # If expected_namespace is not provided, infer it from the query
+    if not expected_namespace:
+        expected_namespace = detect_namespace(query)
+    
     if not chunks:
         return {
             "avg_score": 0.0,
@@ -376,6 +381,7 @@ def evaluate_baseline(
             "num_results": 0,
             "detected_namespace": "none",
             "namespace_correct": False,
+            "expected_namespace": expected_namespace,
             "doc_types": {},
             "namespaces": {},
             "unique_docs": 0,
@@ -400,10 +406,6 @@ def evaluate_baseline(
         namespace_dist[ns] += 1
     
     unique_docs = len(set(chunk.get("doc_id", "") for chunk in chunks))
-    
-    # If expected_namespace is not provided, infer it from the query
-    if not expected_namespace:
-        expected_namespace = detect_namespace(query)
     
     namespace_correct = detected_namespace == expected_namespace
     
