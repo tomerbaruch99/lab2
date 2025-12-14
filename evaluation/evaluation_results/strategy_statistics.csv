@@ -1,4 +1,7 @@
 strategy,avg_score_mean,avg_score_std,avg_score_min,avg_score_max,max_score_mean,max_score_std,namespace_correct_mean,num_results_mean,unique_docs_mean,precision_mean,precision_std,recall_mean,recall_std,accuracy_mean,accuracy_std
 adaptive,0.5259,0.1247,0.2677,0.6881,0.5443,0.1179,1.0,3.0,2.4,0.1,0.219,0.1,0.219,0.1,0.219
 baseline,0.2982,0.1361,0.0929,0.5203,0.3296,0.1409,1.0,3.0,2.7,0.0,0.0,0.0,0.0,0.0,0.0
+baseline_keyword,0.0832,0.0542,0.0135,0.25,0.0895,0.0545,1.0,3.0,2.4,,,,,,
+baseline_retrieval_only,0.5359,0.1136,0.3416,0.6881,0.5487,0.1162,1.0,3.0,2.35,,,,,,
+baseline_tfidf,0.1136,0.1797,0.0,0.4471,0.116,0.1836,0.3,0.75,0.7,,,,,,
 sentence,0.4312,0.1208,0.217,0.6338,0.4456,0.1215,1.0,3.0,2.55,0.05,0.2236,0.05,0.2236,0.05,0.2236

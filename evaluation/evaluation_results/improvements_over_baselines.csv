@@ -1,7 +1,10 @@
 main_strategy,baseline_strategy,mean_improvement_pct,median_improvement_pct,std_improvement_pct,queries_better,queries_worse,queries_equal,total_queries,proportion_better_pct
-baseline,baseline_tfidf,,,,20,0,0,20,100.0
-baseline,baseline_keyword,,,,20,0,0,20,100.0
-sentence,baseline_tfidf,,,,20,0,0,20,100.0
-sentence,baseline_keyword,,,,20,0,0,20,100.0
-adaptive,baseline_tfidf,,,,20,0,0,20,100.0
-adaptive,baseline_keyword,,,,20,0,0,20,100.0
+baseline,baseline_tfidf,-12.13,-11.35,19.2,15,5,0,20,75.0
+baseline,baseline_keyword,351.65,261.96,278.72,20,0,0,20,100.0
+baseline,baseline_retrieval_only,-46.48,-46.24,17.64,0,20,0,20,0.0
+sentence,baseline_tfidf,24.2,25.3,19.35,20,0,0,20,100.0
+sentence,baseline_keyword,616.72,510.42,474.48,20,0,0,20,100.0
+sentence,baseline_retrieval_only,-19.93,-16.35,12.45,0,20,0,20,0.0
+adaptive,baseline_tfidf,56.7,63.18,19.54,20,0,0,20,100.0
+adaptive,baseline_keyword,726.74,730.17,386.15,20,0,0,20,100.0
+adaptive,baseline_retrieval_only,-2.35,0.0,5.86,0,5,15,20,0.0

@@ -4,6 +4,12 @@ adaptive,Moderate (0.4-0.6),9,20,45.0
 adaptive,Poor (<0.4),4,20,20.0
 baseline,Moderate (0.4-0.6),6,20,30.0
 baseline,Poor (<0.4),14,20,70.0
+baseline_keyword,Poor (<0.4),20,20,100.0
+baseline_retrieval_only,Good (0.6-0.8),7,20,35.0
+baseline_retrieval_only,Moderate (0.4-0.6),9,20,45.0
+baseline_retrieval_only,Poor (<0.4),4,20,20.0
+baseline_tfidf,Moderate (0.4-0.6),2,20,10.0
+baseline_tfidf,Poor (<0.4),18,20,90.0
 sentence,Good (0.6-0.8),2,20,10.0
 sentence,Moderate (0.4-0.6),11,20,55.0
 sentence,Poor (<0.4),7,20,35.0

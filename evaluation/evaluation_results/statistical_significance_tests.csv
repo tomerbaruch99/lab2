@@ -1,4 +1,4 @@
 strategy1,strategy2,metric,mean1,mean2,mean_difference,t_statistic,p_value,significant,interpretation,n_samples
-baseline,baseline_keyword,avg_score,0.2982,0.0,0.2982,9.8009,0.0,True,"Significant difference (p=0.0000, α=0.05)",20
-sentence,baseline_keyword,avg_score,0.4312,0.0,0.4312,15.9697,0.0,True,"Significant difference (p=0.0000, α=0.05)",20
-adaptive,baseline_keyword,avg_score,0.5259,0.0,0.5259,18.8634,0.0,True,"Significant difference (p=0.0000, α=0.05)",20
+baseline,baseline_retrieval_only,avg_score,0.2982,0.5359,-0.2377,-13.5823,0.0,True,"Significant difference (p=0.0000, α=0.05)",20
+sentence,baseline_retrieval_only,avg_score,0.4312,0.5359,-0.1047,-7.1681,1e-06,True,"Significant difference (p=0.0000, α=0.05)",20
+adaptive,baseline_retrieval_only,avg_score,0.5259,0.5359,-0.01,-1.7698,0.092803,False,"Not significant difference (p=0.0928, α=0.05)",20
