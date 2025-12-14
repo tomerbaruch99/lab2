@@ -33,7 +33,7 @@ except ImportError:
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from retriever import Retriever, detect_namespace, FALLBACK_NAMESPACE
-from utils import DEFAULT_API_KEYS_PATH, DEFAULT_TOP_K, DEFAULT_EMBEDDING_MODEL
+from utils import DEFAULT_API_KEYS_PATH, DEFAULT_TOP_K, DEFAULT_EMBEDDING_MODEL, DEFAULT_INDEX_NAME
 
 
 # ============================================================

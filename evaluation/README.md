@@ -138,8 +138,31 @@ Include with `--include_baselines`:
 - `pip install -r requirements.txt`
 - Optional: `pip install scikit-learn>=1.0.0` for baseline methods
 
+## Prerequisites for Baseline Methods
+
+**Important**: To use baseline methods (`--include_baselines`), you need the prepared data file:
+
+1. **Generate the data file** (if you don't have it):
+   ```bash
+   python scrape_and_prepare_data/data_preparation.py \
+       --input_json scrape_and_prepare_data/haifa_scraped.json \
+       --out_dir scrape_and_prepare_data/haifa_prepared_data \
+       --chunk_chars 1000 \
+       --chunk_overlap 200
+   ```
+
+2. **This creates**: `scrape_and_prepare_data/haifa_prepared_data/haifa_rag_chunks.parquet`
+
+3. **Required input**: `scrape_and_prepare_data/haifa_scraped.json` (scraped website data)
+
+**Note**: 
+- The `baseline_tfidf` and `baseline_keyword` methods require this parquet file
+- The `baseline_retrieval_only` method uses Pinecone (same as main retriever), so it doesn't need the parquet file
+- If the parquet file is missing, baseline methods will show warnings and return zero scores
+
 ## Troubleshooting
 
 - **No results**: Check data is indexed, index name matches, namespace exists
 - **Low scores**: Check embedding model matches, queries in Hebrew, data quality
 - **Namespace issues**: Review detection rules in `retriever.py`
+- **Baseline methods return zero scores**: Check that `scrape_and_prepare_data/haifa_prepared_data/haifa_rag_chunks.parquet` exists. If missing, generate it using `data_preparation.py` (see Prerequisites above)

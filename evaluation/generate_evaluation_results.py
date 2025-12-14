@@ -453,14 +453,22 @@ def compare_strategies(
     if include_baselines and BASELINES_AVAILABLE:
         print("\n[INFO] Initializing baseline methods...")
         try:
-            baseline_retrievers["tfidf"] = TfIdfBaselineRetriever(api_keys_path=api_keys_path)
-            print("[OK] TF-IDF baseline ready")
+            tfidf_retriever = TfIdfBaselineRetriever(api_keys_path=api_keys_path)
+            if hasattr(tfidf_retriever, 'documents') and len(tfidf_retriever.documents) > 0:
+                baseline_retrievers["tfidf"] = tfidf_retriever
+                print(f"[OK] TF-IDF baseline ready ({len(tfidf_retriever.documents)} documents)")
+            else:
+                print("[WARN] TF-IDF baseline unavailable: No documents loaded. Missing data file: scrape_and_prepare_data/haifa_prepared_data/haifa_rag_chunks.parquet")
         except Exception as e:
             print(f"[WARN] TF-IDF baseline unavailable: {e}")
         
         try:
-            baseline_retrievers["keyword"] = KeywordMatchingBaseline()
-            print("[OK] Keyword matching baseline ready")
+            keyword_retriever = KeywordMatchingBaseline()
+            if hasattr(keyword_retriever, 'documents') and len(keyword_retriever.documents) > 0:
+                baseline_retrievers["keyword"] = keyword_retriever
+                print(f"[OK] Keyword matching baseline ready ({len(keyword_retriever.documents)} documents)")
+            else:
+                print("[WARN] Keyword baseline unavailable: No documents loaded. Missing data file: scrape_and_prepare_data/haifa_prepared_data/haifa_rag_chunks.parquet")
         except Exception as e:
             print(f"[WARN] Keyword baseline unavailable: {e}")
         
@@ -469,6 +477,17 @@ def compare_strategies(
             print("[OK] Retrieval-only baseline ready")
         except Exception as e:
             print(f"[WARN] Retrieval-only baseline unavailable: {e}")
+        
+        if len(baseline_retrievers) == 0:
+            print("\n[ERROR] No baseline methods available!")
+            print("[INFO] To enable baseline methods, you need to generate the data file:")
+            print("       1. Ensure you have scrape_and_prepare_data/haifa_scraped.json")
+            print("       2. Run: python scrape_and_prepare_data/data_preparation.py \\")
+            print("              --input_json scrape_and_prepare_data/haifa_scraped.json \\")
+            print("              --out_dir scrape_and_prepare_data/haifa_prepared_data \\")
+            print("              --chunk_chars 1000 --chunk_overlap 200")
+            print("       3. This will create: scrape_and_prepare_data/haifa_prepared_data/haifa_rag_chunks.parquet")
+            print("\n[INFO] Continuing evaluation without baseline methods...")
     
     print(f"\n[EVALUATION] Testing {len(queries)} queries across {len(strategies)} strategies...")
     if include_baselines:
