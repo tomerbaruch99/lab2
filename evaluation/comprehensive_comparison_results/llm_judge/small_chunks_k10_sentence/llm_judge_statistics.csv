@@ -1,0 +1,2 @@
+strategy,correctness_mean,correctness_std,faithfulness_mean,faithfulness_std,completeness_mean,completeness_std,conciseness_mean,conciseness_std,overall_mean,overall_std
+sentence,0.225,0.374,0.225,0.4051,0.05,0.1051,0.79,0.2936,0.09,0.1744
