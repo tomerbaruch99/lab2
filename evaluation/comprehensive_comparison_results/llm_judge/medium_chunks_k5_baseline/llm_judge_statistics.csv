@@ -1,0 +1,2 @@
+strategy,correctness_mean,correctness_std,faithfulness_mean,faithfulness_std,completeness_mean,completeness_std,conciseness_mean,conciseness_std,overall_mean,overall_std
+baseline,0.125,0.3193,0.35,0.4894,0.0,0.0,0.98,0.0616,0.035,0.1137

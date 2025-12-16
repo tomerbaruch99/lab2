@@ -186,5 +186,5 @@ jupyter notebook evaluation/analyze_evaluation_results.ipynb
 
 - **`generate_evaluation_results.py`**: Evaluates retrieval, does NOT use LLM judging
 - **`llm_judge.py`**: Utility for answer quality evaluation
-- **`run_llm_judge_evaluation.py`**: New script that integrates LLM judging with the testset
+- **`run_llm_judge_evaluation.py`**: Integrates LLM judging with the testset
 - **`embedding_testset.json`**: Works for both evaluation types (retrieval and answer quality)

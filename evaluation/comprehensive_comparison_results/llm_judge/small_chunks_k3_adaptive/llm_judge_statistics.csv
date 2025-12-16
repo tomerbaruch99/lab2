@@ -1,0 +1,2 @@
+strategy,correctness_mean,correctness_std,faithfulness_mean,faithfulness_std,completeness_mean,completeness_std,conciseness_mean,conciseness_std,overall_mean,overall_std
+adaptive,0.115,0.2581,0.18,0.3665,0.025,0.0786,0.86,0.2981,0.04,0.0995

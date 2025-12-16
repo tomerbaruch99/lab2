@@ -203,13 +203,13 @@ def create_category_comparison_bar(
     title: str = "Performance by Query Category"
 ) -> None:
     """Create a grouped bar chart comparing strategies across query categories."""
-    if 'category' not in df.columns or 'strategy' not in df.columns or 'avg_score' not in df.columns:
-        print("⚠️ Required columns (category, strategy, avg_score) not found")
+    if 'expected_namespace' not in df.columns or 'strategy' not in df.columns or 'avg_score' not in df.columns:
+        print("⚠️ Required columns (expected_namespace, strategy, avg_score) not found")
         return
     
     fig, ax = plt.subplots(figsize=(14, 7))
     
-    category_perf = df.groupby(['strategy', 'category'])['avg_score'].mean().unstack(fill_value=0)
+    category_perf = df.groupby(['strategy', 'expected_namespace'])['avg_score'].mean().unstack(fill_value=0)
     
     x = np.arange(len(category_perf.index))
     width = 0.8 / len(category_perf.columns)
@@ -375,7 +375,7 @@ def create_all_basic_visualizations(
     )
     
     # 5. Category comparison
-    if 'category' in df.columns:
+    if 'expected_namespace' in df.columns:
         create_category_comparison_bar(
             df,
             output_dir / '5_category_comparison.png',
