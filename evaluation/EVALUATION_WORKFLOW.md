@@ -35,7 +35,7 @@ Before starting evaluation, ensure you have:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│              COMPLETE EVALUATION WORKFLOW                    │
+│              COMPLETE EVALUATION WORKFLOW                   │
 └─────────────────────────────────────────────────────────────┘
 
 ═══════════════════════════════════════════════════════════════
@@ -137,7 +137,7 @@ python indexing.py \
 ```bash
 python evaluation/generate_evaluation_results.py \
     --strategies baseline sentence adaptive \
-    --top_k 5 \
+    --top_k 3 \
     --testset_file tests/embedding_testset.json  # Optional: for precision/recall metrics
 ```
 
@@ -232,7 +232,7 @@ python evaluation/evaluate_chunk_configurations.py \
     --output_base_dir evaluation/chunk_config_evaluations \
     --testset_file tests/embedding_testset.json \
     --strategies baseline sentence adaptive \
-    --top_k 5
+    --top_k 3
 ```
 
 **What Happens**:
