@@ -1,0 +1,13 @@
+config,correctness_mean,correctness_std,faithfulness_mean,faithfulness_std,completeness_mean,completeness_std,conciseness_mean,conciseness_std,overall_mean,overall_std
+adaptive_baseline,0.0556,0.1333,0.3667,0.4848,0.0222,0.0667,0.8667,0.2693,0.0333,0.0707
+adaptive_both,0.5667,0.4272,0.4444,0.4333,0.2,0.2,0.7222,0.2224,0.2556,0.2455
+adaptive_enrichment_only,0.125,0.2435,0.5125,0.5222,0.075,0.1389,0.6375,0.3068,0.075,0.1389
+adaptive_reranking_only,0.075,0.2121,0.3125,0.4581,0.025,0.0707,0.9125,0.1808,0.0375,0.1061
+baseline_baseline,0.0,0.0,0.3444,0.4927,0.0,0.0,0.8778,0.2728,0.0,0.0
+baseline_both,0.0,0.0,0.7778,0.441,0.0,0.0,0.9444,0.1667,0.0,0.0
+baseline_enrichment_only,0.0,0.0,0.51,0.5174,0.0,0.0,0.87,0.283,0.0,0.0
+baseline_reranking_only,0.0,0.0,0.4444,0.527,0.0,0.0,0.9667,0.1,0.0,0.0
+sentence_baseline,0.0889,0.1691,0.4667,0.5099,0.0222,0.0441,0.7889,0.318,0.0667,0.0707
+sentence_both,0.1778,0.327,0.4667,0.5099,0.0333,0.0707,0.5667,0.3082,0.0889,0.1537
+sentence_enrichment_only,0.0889,0.2315,0.5,0.5,0.0333,0.1,0.7,0.3808,0.0556,0.1333
+sentence_reranking_only,0.1444,0.3283,0.3556,0.4851,0.0333,0.0707,0.8556,0.2455,0.0333,0.05

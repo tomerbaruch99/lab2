@@ -473,7 +473,7 @@ def main():
         "--index_name",
         type=str,
         default=None,
-        help="Pinecone index name (default: from utils config)",
+        help="Pinecone index name (e.g. haifa-municipality-rag-small-chunks)",
     )
     parser.add_argument(
         "--judge_model",
