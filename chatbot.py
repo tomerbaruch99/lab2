@@ -43,7 +43,7 @@ sys.path.insert(0, str(project_root))
 
 from gemini_integration import GeminiRAG
 from utils.smart_page_finder import SmartPageFinder
-from utils import DEFAULT_API_KEYS_PATH
+from utils import DEFAULT_API_KEYS_PATH, DEFAULT_INDEX_NAME
 
 
 
@@ -178,8 +178,11 @@ def init_rag():
         If initialization fails, the error is displayed to the user.
     """
     try:
-        # Initialize RAG system with default API keys path
-        rag_system = GeminiRAG(api_keys_path=DEFAULT_API_KEYS_PATH)
+        # Initialize RAG system with default API keys path and small chunks index
+        rag_system = GeminiRAG(
+            api_keys_path=DEFAULT_API_KEYS_PATH,
+            index_name=DEFAULT_INDEX_NAME  # Using small chunks index
+        )
         
         # Initialize Smart Page Finder for relevant page recommendations
         page_finder = SmartPageFinder()
@@ -255,8 +258,8 @@ with st.form("chat_form", clear_on_submit=True):
                 # Display loading spinner while processing
                 with st.spinner("מחפש מידע ומכין תשובה..."):
                     # Get answer from RAG system
-                    # top_k=3 retrieves 3 most relevant chunks for context (best performing config)
-                    res = rag.answer_question(user_input, top_k=3)
+                    # Using adaptive chunking strategy with k=10 for better retrieval
+                    res = rag.answer_question(user_input, top_k=10, strategy="adaptive")
                     answer = res["answer"]
                     confidence = res.get("confidence", {})
 

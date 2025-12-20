@@ -135,7 +135,7 @@ DEFAULT_PROMPT_STYLE = "detailed"  # Options: detailed, concise, conversational,
 # ============================================================
 
 DEFAULT_EVALUATION_STRATEGIES = ["baseline", "sentence", "adaptive"]
-DEFAULT_EVALUATION_TOP_K = 5
+DEFAULT_EVALUATION_TOP_K = 10
 
 # ============================================================
 # Path Configuration
