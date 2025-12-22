@@ -8,7 +8,7 @@ This script runs the evaluation of different chunking strategies:
 - adaptive
 
 It tests queries across all strategies and saves raw results to CSV files.
-For visualization and analysis, use the analyze_evaluation_results.ipynb notebook or analyze_results.py script.
+For visualization and analysis, use the analyze_evaluation_results.ipynb notebook.
 
 Usage:
     python generate_evaluation_results.py \
@@ -924,7 +924,6 @@ def run_evaluation(
     
     For visualization and analysis (NO API access required), use:
     - analyze_evaluation_results.ipynb (Jupyter notebook)
-    - analyze_results.py (command-line script)
     Both analyze locally stored CSV files only.
     """
     
@@ -1070,7 +1069,7 @@ def run_evaluation(
                     print(f"    {test['interpretation']}")
     
     print("\n" + "=" * 70)
-    print("\n[INFO] For visualizations and detailed analysis, run analyze_evaluation_results.ipynb or analyze_results.py")
+    print("\n[INFO] For visualizations and detailed analysis, run analyze_evaluation_results.ipynb")
     print("       The notebook will load the CSV files from this directory.")
     print(f"       See quantitative_analysis_report.md for comprehensive quantitative analysis.\n")
 
@@ -1127,8 +1126,8 @@ def main():
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="evaluation/evaluation_results",
-        help="Output directory for evaluation results (default: evaluation/evaluation_results)",
+        default="evaluation/all_strategies_comparison_eval_results",
+        help="Output directory for evaluation results (default: evaluation/all_strategies_comparison_eval_results)",
     )
     parser.add_argument(
         "--strategies",

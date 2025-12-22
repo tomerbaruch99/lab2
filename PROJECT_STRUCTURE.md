@@ -11,8 +11,10 @@ project/
 │   ├── gemini_integration.py        # Complete RAG system with Gemini
 │   ├── retriever.py                 # Retrieves chunks from Pinecone
 │   ├── prompt_builder.py            # Builds prompts for LLM
-│   ├── confidence_meter.py          # Answer confidence scoring
-│   └── indexing.py                  # Indexes data into Pinecone
+│   ├── confidence_meter.py           # Answer confidence scoring
+│   ├── indexing.py                  # Indexes data into Pinecone
+│   ├── check_pinecone_links.py      # Utility to check Pinecone links
+│   └── run_all_configs.py           # Run evaluations for all configurations
 │
 ├── scrape_and_prepare_data/         # Data preparation
 │   ├── data_preparation.py          # Prepares scraped JSON → chunks
@@ -26,25 +28,43 @@ project/
 ├── evaluation/                      # Evaluation system
 │   ├── generate_evaluation_results.py    # Generate CSV results (queries APIs)
 │   ├── analyze_evaluation_results.ipynb  # Analyze results (reads CSV only)
-│   ├── analyze_results.py               # Command-line analysis
+│   ├── strategy_comparison_analysis.ipynb # Strategy comparison notebook
 │   ├── evaluate_chunk_configurations.py  # Test multiple chunk configs
+│   ├── evaluate_enrichment_reranking_configs.py # Test query enrichment & reranking
 │   ├── run_llm_judge_evaluation.py      # LLM judge evaluation
+│   ├── run_comprehensive_comparison.py  # Run all combinations automatically (3 configs × 3 K × 3 strategies)
 │   ├── llm_judge.py                     # LLM-as-a-judge utility
+│   ├── test_llm_judge.py                # Test LLM judge functionality
 │   ├── baseline_methods.py              # Baseline methods (TF-IDF, keyword)
 │   ├── quantitative_report_generator.py # Report generation
+│   ├── visualize_comprehensive_llm_judge.py # Comprehensive LLM judge visualization
 │   ├── evaluation_queries.json          # Evaluation query set
 │   ├── chunk_configs.json               # Chunk configuration examples
-│   └── README.md                        # Evaluation documentation
+│   ├── README.md                        # Evaluation documentation
+│   ├── EVALUATION_WORKFLOW.md           # Complete evaluation workflow guide
+│   ├── LLM_JUDGE_USAGE.md              # LLM judge usage guide
+│   │
+│   ├── all_strategies_comparison_eval_results/  # Strategy comparison results
+│   ├── chunks_config_comparison_eval_results/   # Chunk config comparison results
+│   ├── comparison_eval_results_per_k/           # K-value comparison results
+│   ├── enrichment_reranking_results/             # Enrichment/reranking results
+│   ├── llm_judge_eval_results/                  # LLM judge evaluation results
+│   └── strategy_results_vizualizations/          # Strategy visualization outputs
 │
 ├── utils/                           # Shared utilities
+│   ├── __init__.py                  # Package initialization
 │   ├── config.py                    # Configuration constants
 │   ├── embedding.py                 # Embedding model wrapper
 │   ├── pinecone_utils.py            # Pinecone helper functions
 │   ├── query_enhancement.py         # Query enrichment and reranking
 │   ├── smart_page_finder.py         # Smart Page Finder tool
 │   ├── build_page_index.py          # Build page index
+│   ├── compare_chunk_configs.py     # Compare chunk configurations
+│   ├── compare_embedding_models.py  # Compare embedding models
+│   ├── recreate_index.py            # Recreate Pinecone index
 │   ├── api_keys.json                # API keys (create this file)
-│   └── README.md                    # Utilities documentation
+│   ├── README.md                    # Utilities documentation
+│   └── SMART_PAGE_FINDER_README.md  # Smart Page Finder documentation
 │
 ├── examples/                        # Usage examples
 │   ├── example_retriever_usage.py   # Basic retrieval examples
@@ -68,7 +88,8 @@ project/
 │
 └── Documentation
     ├── README.md                    # Main documentation
-    └── evaluation/EVALUATION_WORKFLOW.md
+    ├── PROJECT_STRUCTURE.md         # This file
+    └── requirements.txt             # Python dependencies
 ```
 
 ## Component Overview

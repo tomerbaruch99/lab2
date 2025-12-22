@@ -29,8 +29,8 @@ plt.style.use('seaborn-v0_8-whitegrid')
 sns.set_palette("husl")
 
 # Configuration
-RESULTS_DIR = Path(__file__).parent / "comprehensive_llm_judge_eval"
-OUTPUT_DIR = Path(__file__).parent / "comprehensive_llm_judge_eval" / "visualizations"
+RESULTS_DIR = Path(__file__).parent / "llm_judge_eval_results" / "llm_judge"
+OUTPUT_DIR = Path(__file__).parent / "llm_judge_eval_results" / "visualizations"
 METRICS = ['correctness', 'faithfulness', 'completeness', 'conciseness', 'overall']
 STRATEGIES = ['baseline', 'sentence', 'adaptive']
 K_VALUES = [3, 5, 10]

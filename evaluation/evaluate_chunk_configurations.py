@@ -21,7 +21,7 @@ Usage:
     python evaluation/evaluate_chunk_configurations.py \
         --input_json scrape_and_prepare_data/haifa_scraped.json \
         --configs configs.json \
-        --output_base_dir evaluation/chunk_config_evaluations
+        --output_base_dir evaluation/chunks_config_comparison_eval_results
 
 Config file format (configs.json):
     [
@@ -410,7 +410,7 @@ def main():
     parser.add_argument(
         "--output_base_dir",
         type=str,
-        default="evaluation/chunk_config_evaluations",
+        default="evaluation/chunks_config_comparison_eval_results",
         help="Base directory for all configuration outputs",
     )
     parser.add_argument(
