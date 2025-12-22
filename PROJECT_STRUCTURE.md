@@ -32,7 +32,7 @@ project/
 │   ├── evaluate_chunk_configurations.py  # Test multiple chunk configs
 │   ├── evaluate_enrichment_reranking_configs.py # Test query enrichment & reranking
 │   ├── run_llm_judge_evaluation.py      # LLM judge evaluation
-│   ├── run_comprehensive_comparison.py  # Run all combinations automatically (3 configs × 3 K × 3 strategies)
+│   ├── run_comprehensive_comparison.py  # Run all combinations automatically
 │   ├── llm_judge.py                     # LLM-as-a-judge utility
 │   ├── test_llm_judge.py                # Test LLM judge functionality
 │   ├── baseline_methods.py              # Baseline methods (TF-IDF, keyword)

@@ -42,7 +42,7 @@ jupyter notebook evaluation/analyze_evaluation_results.ipynb
 | `evaluate_chunk_configurations.py` | Test different chunk sizes/overlaps | Comparison across chunk configs |
 | `evaluate_enrichment_reranking_configs.py` | Test query enrichment & reranking combinations | LLM judge results for 4 combinations |
 | `run_llm_judge_evaluation.py` | LLM-as-a-judge evaluation (answer quality) | Correctness, faithfulness, completeness scores |
-| `run_comprehensive_comparison.py` | Run all combinations automatically (3 configs × 3 K × 3 strategies) | Comprehensive results in `comprehensive_comparison_results/` |
+| `run_comprehensive_comparison.py` | Run all combinations automatically | Comprehensive results in `llm_judge_eval_results/` |
 
 ### Analysis & Visualization
 
@@ -106,12 +106,11 @@ done
 ```bash
 python evaluation/run_comprehensive_comparison.py \
     --testset_file tests/embedding_testset.json \
-    --output_dir evaluation/comprehensive_comparison_results
+    --output_dir evaluation/llm_judge_eval_results
 ```
 
-**Output**: `comprehensive_comparison_results/`
-- `llm_judge/` - 27 folders (one per combination)
-- `baselines/` - 9 folders (baseline comparisons)
+**Output**: `llm_judge_eval_results/`
+- `llm_judge/` - One folder per combination
 - `comparison_summary.csv` - Aggregated summary
 
 **Use when**: You want to test all combinations automatically instead of running steps individually.
@@ -166,7 +165,6 @@ python evaluation/evaluate_enrichment_reranking_configs.py \
 | `chunks_config_comparison_eval_results/` | Chunk config comparison | One subfolder per config with evaluation results |
 | `comparison_eval_results_per_k/` | K-value comparison | Separate folders for k=3, k=5, k=10 |
 | `llm_judge_eval_results/llm_judge/` | LLM judge results | Answer quality metrics (correctness, faithfulness, etc.) |
-| `comprehensive_comparison_results/` | Comprehensive comparison | All combinations (27 LLM judge + 9 baseline evaluations) |
 | `enrichment_reranking_results/` | Enhancement testing | Enrichment/reranking combination results |
 
 ### Key Output Files

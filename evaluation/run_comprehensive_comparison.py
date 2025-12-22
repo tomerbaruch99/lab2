@@ -2,15 +2,12 @@
 Comprehensive Strategy Comparison Script
 ========================================
 
-This script runs a comprehensive evaluation across all combinations:
-- 3 chunk configurations (small_chunks, medium_chunks, small_overlap)
-- 3 K values (3, 5, 10)
-- 3 strategies (baseline, sentence, adaptive)
+This script runs a comprehensive evaluation across multiple chunk configurations,
+K values, and strategies using LLM judge evaluation.
 
 It generates:
-1. LLM judge results for each combination (27 total)
-2. Baseline comparison results for each chunk config/K value (9 total)
-3. Summary report aggregating all results
+1. LLM judge results for each combination
+2. Summary report aggregating all results
 
 This script does NOT re-index data - it uses existing Pinecone indexes.
 
@@ -58,35 +55,6 @@ def run_llm_judge_evaluation(
         return False
 
 
-def run_baseline_evaluation(
-    testset_file: str,
-    output_dir: str,
-    strategies: List[str],
-    top_k: int,
-    index_name: str,
-    api_keys_path: str = DEFAULT_API_KEYS_PATH,
-) -> bool:
-    """Run baseline evaluation for a chunk config/K value combination."""
-    cmd = [
-        sys.executable,
-        "evaluation/generate_evaluation_results.py",
-        "--strategies"] + strategies + [
-        "--top_k", str(top_k),
-        "--include_baselines",
-        "--testset_file", testset_file,
-        "--output_dir", output_dir,
-        "--index_name", index_name,
-        "--api_keys_path", api_keys_path,
-    ]
-    
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"    [ERROR] Failed: {e.stderr}", file=sys.stderr)
-        return False
-
-
 def generate_summary(base_output_dir: Path):
     """Generate summary report from all results."""
     import pandas as pd
@@ -121,29 +89,6 @@ def generate_summary(base_output_dir: Path):
                         except Exception as e:
                             print(f"Error reading {stats_file}: {e}")
     
-    # Collect baseline results
-    baselines_dir = base_output_dir / "baselines"
-    if baselines_dir.exists():
-        for chunk_config in ["small_chunks", "medium_chunks", "small_overlap"]:
-            for k in [3, 5, 10]:
-                stats_file = baselines_dir / f"{chunk_config}_k{k}_baselines" / "strategy_statistics.csv"
-                if stats_file.exists():
-                    try:
-                        df = pd.read_csv(stats_file)
-                        for _, row in df.iterrows():
-                            results_summary.append({
-                                "chunk_config": chunk_config,
-                                "k": k,
-                                "evaluation_type": "retrieval_metrics",
-                                "strategy": row["strategy"],
-                                "avg_score_mean": row.get("avg_score_mean", 0),
-                                "namespace_correct_mean": row.get("namespace_correct_mean", 0),
-                                "precision_mean": row.get("precision_mean", None),
-                                "recall_mean": row.get("recall_mean", None),
-                            })
-                    except Exception as e:
-                        print(f"Error reading {stats_file}: {e}")
-    
     # Save summary
     if len(results_summary) > 0:
         summary_df = pd.DataFrame(results_summary)
@@ -160,20 +105,6 @@ def generate_summary(base_output_dir: Path):
             print(top_overall[["chunk_config", "k", "strategy", "overall_mean", "correctness_mean", "faithfulness_mean"]].to_string(index=False))
         else:
             print("No LLM judge results found.")
-        
-        # Print baseline comparison
-        print("\n=== Baseline Comparison (Retrieval Metrics) ===")
-        baseline_results = summary_df[summary_df["evaluation_type"] == "retrieval_metrics"]
-        if len(baseline_results) > 0:
-            baseline_summary = baseline_results.groupby("strategy").agg({
-                "avg_score_mean": "mean",
-                "namespace_correct_mean": "mean",
-                "precision_mean": "mean",
-                "recall_mean": "mean"
-            }).round(4)
-            print(baseline_summary.to_string())
-        else:
-            print("No baseline results found.")
     else:
         print("No results found to summarize.")
 
@@ -191,7 +122,7 @@ def main():
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="evaluation/comprehensive_comparison_results",
+        default="evaluation/llm_judge_eval_results",
         help="Base output directory for results",
     )
     parser.add_argument(
@@ -218,18 +149,12 @@ def main():
     base_output_dir.mkdir(parents=True, exist_ok=True)
     
     llm_judge_dir = base_output_dir / "llm_judge"
-    baselines_dir = base_output_dir / "baselines"
     llm_judge_dir.mkdir(parents=True, exist_ok=True)
-    baselines_dir.mkdir(parents=True, exist_ok=True)
     
     print("=" * 70)
     print("Comprehensive Strategy Comparison")
     print("Using LLM Judge Evaluation")
     print("=" * 70)
-    print()
-    print("Running each combination separately:")
-    print("  - 3 chunk configs × 3 k values × 3 strategies = 27 LLM judge evaluations")
-    print("  - 3 chunk configs × 3 k values = 9 baseline evaluations")
     print()
     
     total_runs = len(chunk_configs) * len(k_values) * len(strategies)
@@ -290,64 +215,6 @@ def main():
     print(f"LLM Judge Summary: {completed_count} completed, {skipped_count} skipped")
     print()
     
-    # Run baseline evaluations
-    print("=" * 70)
-    print("Running Baseline Evaluations")
-    print("=" * 70)
-    print()
-    
-    baseline_skipped_count = 0
-    baseline_completed_count = 0
-    
-    for chunk_config in chunk_configs:
-        chunk_name = chunk_config["name"]
-        index_name = chunk_config["index"]
-        
-        print("-" * 70)
-        print(f"Baseline Evaluations: {chunk_name}")
-        print("-" * 70)
-        print()
-        
-        for k in k_values:
-            print(f"  Testing k={k} with baselines...")
-            
-            # Create output directory for baseline results
-            baseline_output_dir = baselines_dir / f"{chunk_name}_k{k}_baselines"
-            baseline_output_dir.mkdir(parents=True, exist_ok=True)
-            
-            # Check if already completed
-            baseline_results_file = baseline_output_dir / "strategy_statistics.csv"
-            
-            if baseline_results_file.exists():
-                baseline_skipped_count += 1
-                print("    [SKIPPED - Already completed]")
-                print()
-                continue
-            
-            print("    Running evaluation with baselines...")
-            
-            success = run_baseline_evaluation(
-                testset_file=args.testset_file,
-                output_dir=str(baseline_output_dir),
-                strategies=strategies,
-                top_k=k,
-                index_name=index_name,
-                api_keys_path=args.api_keys_path,
-            )
-            
-            if success:
-                baseline_completed_count += 1
-                print(f"    [OK] Completed baseline evaluation for {chunk_name} k={k}")
-            else:
-                print(f"    [ERROR] Failed to run baseline evaluation for {chunk_name} k={k}")
-                print("    Continuing with next configuration...")
-            
-            print()
-    
-    print()
-    print(f"Baseline Summary: {baseline_completed_count} completed, {baseline_skipped_count} skipped")
-    print()
-    
     # Generate summary
     print("=" * 70)
     print("Generating Summary Report")
@@ -372,15 +239,9 @@ def main():
     print(f"  {base_output_dir}/")
     print("    ├── llm_judge/")
     print("    │   ├── {{chunk_config}}_k{{k}}_{{strategy}}/     - LLM judge results for EACH combination")
-    print("    │   └── (27 folders total)")
-    print("    ├── baselines/")
-    print("    │   ├── {{chunk_config}}_k{{k}}_baselines/       - Baseline comparison results")
-    print("    │   └── (9 folders total)")
     print("    └── comparison_summary.csv                  - Aggregated summary of all results")
     print()
-    print("Total combinations:")
-    print(f"  - LLM Judge: {completed_count} completed, {skipped_count} skipped (out of 27 total)")
-    print(f"  - Baselines: {baseline_completed_count} completed, {baseline_skipped_count} skipped (out of 9 total)")
+    print(f"Total completed: {completed_count}, skipped: {skipped_count}")
     print()
     print("Note: Skipped combinations already have results files. Delete them to re-run.")
 

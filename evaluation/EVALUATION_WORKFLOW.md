@@ -39,7 +39,6 @@ Understanding output folders helps navigate results:
 | `comparison_eval_results_per_k/results_k{i}/` | Test K values (k=3, 5, 10) | Finding optimal K |
 | `chunks_config_comparison_eval_results/` | Compare chunk configs (size/overlap) | Finding optimal chunk size |
 | `llm_judge_eval_results/llm_judge/` | LLM as a judge results (answer quality) | Answer quality evaluation |
-| `comprehensive_comparison_results/` | Comprehensive comparison | All combinations (27 LLM judge + 9 baseline evaluations) |
 | `enrichment_reranking_results/` | Test enrichment & reranking | Enhancement evaluation |
 
 ---
@@ -258,18 +257,16 @@ If you want to test all combinations automatically, you can use:
 ```bash
 python evaluation/run_comprehensive_comparison.py \
     --testset_file tests/embedding_testset.json \
-    --output_dir evaluation/comprehensive_comparison_results
+    --output_dir evaluation/llm_judge_eval_results
 ```
 
 **What This Does**:
-- Runs LLM judge for all combinations: 3 chunk configs × 3 K values × 3 strategies = 27 evaluations
-- Runs baseline evaluations: 3 chunk configs × 3 K values = 9 evaluations
+- Runs LLM judge for all combinations
 - Generates summary report: `comparison_summary.csv`
 
-**Output**: `comprehensive_comparison_results/`
+**Output**: `llm_judge_eval_results/`
 - `llm_judge/{chunk_config}_k{k}_{strategy}/` - One folder per combination
-- `baselines/{chunk_config}_k{k}_baselines/` - Baseline comparisons
-- `comparison_summary.csv` - Aggregated summary
+- `comparison_summary.csv` - Aggregated summary (in base directory)
 
 **Use when**: You want comprehensive results for all combinations without running steps manually.
 
